@@ -172,7 +172,6 @@
               inputmode: "numeric",
               oncomplete: function (evt) {
                 let cpf = $(evt.target).inputmask('unmaskedvalue');
-                console.log(cpf);
                 if (!cpfValidator(cpf)) {
                   $(evt.target).val("");
                 }
