@@ -19,9 +19,63 @@
     }, function(module, exports, __webpack_require__) {
         var Inputmask = __webpack_require__(3);
         function ipValidator(chrs, maskset, pos, strict, opts) {
-            return chrs = -1 < pos - 1 && "." !== maskset.buffer[pos - 1] ? (chrs = maskset.buffer[pos - 1] + chrs, 
-            -1 < pos - 2 && "." !== maskset.buffer[pos - 2] ? maskset.buffer[pos - 2] + chrs : "0" + chrs) : "00" + chrs, 
+            return chrs = -1 < pos - 1 && "." !== maskset.buffer[pos - 1] ? (chrs = maskset.buffer[pos - 1] + chrs,
+            -1 < pos - 2 && "." !== maskset.buffer[pos - 2] ? maskset.buffer[pos - 2] + chrs : "0" + chrs) : "00" + chrs,
             new RegExp("25[0-5]|2[0-4][0-9]|[01][0-9][0-9]").test(chrs);
+        }
+        function cnpjValidator(cnpj) {
+          const CNPJ_SIZE = 14;
+          const MOD = 11;
+          const AR_CNPJ = cnpj.split("").map(val => parseInt(val));
+          if (AR_CNPJ.length !== CNPJ_SIZE || AR_CNPJ.filter((val, idx, self) => self.indexOf(val) === idx).length < 2) {
+            return false;
+          }
+
+          let valid = AR_CNPJ.slice(0, AR_CNPJ.length - 2);
+          while (valid.length < CNPJ_SIZE) {
+            const SUM = valid.reduce(function(acc, cur, idx, src) {
+              return acc + cur * (src.length - 7 - idx < 2 ? src.length - 7 - idx + 8 : src.length - 7 - idx);
+            }, 0);
+
+            if (SUM % MOD < 2) {
+              valid.push(0);
+            } else {
+              valid.push(11 - SUM % MOD);
+            }
+          }
+
+          if (!(JSON.stringify(AR_CNPJ) === JSON.stringify(valid))) {
+            return false;
+          }
+
+          return true;
+        }
+        function cpfValidator(cpf) {
+          const CPF_SIZE = 11;
+          const AR_CPF = cpf.split("").map(val => parseInt(val));
+          if (AR_CPF.length !== CPF_SIZE || AR_CPF.filter((val, idx, self) => self.indexOf(val) === idx).length < 2) {
+            return false;
+          }
+
+          let valid = AR_CPF.slice(0, AR_CPF.length - 2);
+          while (valid.length < CPF_SIZE) {
+            const SUM = valid.reduce(function(acc, cur, idx, src) {
+              return acc + cur * (src.length + 1 - idx);
+            }, 0);
+
+            let mod = SUM % CPF_SIZE;
+            if (mod < 2) {
+              valid.push(0);
+            } else {
+              valid.push(CPF_SIZE - mod);
+            }
+          }
+
+          if (!(JSON.stringify(AR_CPF) === JSON.stringify(valid))) {
+            return false;
+          }
+
+          return true;
         }
         Inputmask.extendDefinitions({
             A: {
@@ -98,6 +152,31 @@
                 },
                 clearIncomplete: !0,
                 autoUnmask: !0
+            },
+            cnpj: {
+          		mask: "99.999.999/9999-99",
+          		clearIncomplete: !0,
+          		autoUnmask: !0,
+              inputmode: "numeric",
+              oncomplete: function (evt) {
+                let cnpj = $(evt.target).inputmask('unmaskedvalue');
+                if (!cnpjValidator(cnpj)) {
+                  $(evt.target).val("");
+                }
+              }
+          	},
+            cpf: {
+              mask: "999.999.999-99",
+              clearIncomplete: !0,
+              autoUnmask: !0,
+              inputmode: "numeric",
+              oncomplete: function (evt) {
+                let cpf = $(evt.target).inputmask('unmaskedvalue');
+                console.log(cpf);
+                if (!cpfValidator(cpf)) {
+                  $(evt.target).val("");
+                }
+              }
             }
         }), module.exports = Inputmask;
     }, function(module, exports, __webpack_require__) {
@@ -111,33 +190,33 @@
         var $ = __webpack_require__(4), window = __webpack_require__(6), document = window.document, generateMaskSet = __webpack_require__(7).generateMaskSet, analyseMask = __webpack_require__(7).analyseMask, maskScope = __webpack_require__(8);
         function Inputmask(alias, options, internal) {
             if (!(this instanceof Inputmask)) return new Inputmask(alias, options, internal);
-            this.el = void 0, this.events = {}, this.maskset = void 0, this.refreshValue = !1, 
-            !0 !== internal && ($.isPlainObject(alias) ? options = alias : (options = options || {}, 
-            alias && (options.alias = alias)), this.opts = $.extend(!0, {}, this.defaults, options), 
-            this.noMasksCache = options && void 0 !== options.definitions, this.userOptions = options || {}, 
+            this.el = void 0, this.events = {}, this.maskset = void 0, this.refreshValue = !1,
+            !0 !== internal && ($.isPlainObject(alias) ? options = alias : (options = options || {},
+            alias && (options.alias = alias)), this.opts = $.extend(!0, {}, this.defaults, options),
+            this.noMasksCache = options && void 0 !== options.definitions, this.userOptions = options || {},
             resolveAlias(this.opts.alias, options, this.opts), this.isRTL = this.opts.numericInput);
         }
         function resolveAlias(aliasStr, options, opts) {
             var aliasDefinition = Inputmask.prototype.aliases[aliasStr];
-            return aliasDefinition ? (aliasDefinition.alias && resolveAlias(aliasDefinition.alias, void 0, opts), 
-            $.extend(!0, opts, aliasDefinition), $.extend(!0, opts, options), !0) : (null === opts.mask && (opts.mask = aliasStr), 
+            return aliasDefinition ? (aliasDefinition.alias && resolveAlias(aliasDefinition.alias, void 0, opts),
+            $.extend(!0, opts, aliasDefinition), $.extend(!0, opts, options), !0) : (null === opts.mask && (opts.mask = aliasStr),
             !1);
         }
         function importAttributeOptions(npt, opts, userOptions, dataAttribute) {
             function importOption(option, optionData) {
-                optionData = void 0 !== optionData ? optionData : npt.getAttribute(dataAttribute + "-" + option), 
-                null !== optionData && ("string" == typeof optionData && (0 === option.indexOf("on") ? optionData = window[optionData] : "false" === optionData ? optionData = !1 : "true" === optionData && (optionData = !0)), 
+                optionData = void 0 !== optionData ? optionData : npt.getAttribute(dataAttribute + "-" + option),
+                null !== optionData && ("string" == typeof optionData && (0 === option.indexOf("on") ? optionData = window[optionData] : "false" === optionData ? optionData = !1 : "true" === optionData && (optionData = !0)),
                 userOptions[option] = optionData);
             }
             if (!0 === opts.importDataAttributes) {
                 var attrOptions = npt.getAttribute(dataAttribute), option, dataoptions, optionData, p;
-                if (attrOptions && "" !== attrOptions && (attrOptions = attrOptions.replace(/'/g, '"'), 
-                dataoptions = JSON.parse("{" + attrOptions + "}")), dataoptions) for (p in optionData = void 0, 
+                if (attrOptions && "" !== attrOptions && (attrOptions = attrOptions.replace(/'/g, '"'),
+                dataoptions = JSON.parse("{" + attrOptions + "}")), dataoptions) for (p in optionData = void 0,
                 dataoptions) if ("alias" === p.toLowerCase()) {
                     optionData = dataoptions[p];
                     break;
                 }
-                for (option in importOption("alias", optionData), userOptions.alias && resolveAlias(userOptions.alias, userOptions, opts), 
+                for (option in importOption("alias", optionData), userOptions.alias && resolveAlias(userOptions.alias, userOptions, opts),
                 opts) {
                     if (dataoptions) for (p in optionData = void 0, dataoptions) if (p.toLowerCase() === option.toLowerCase()) {
                         optionData = dataoptions[p];
@@ -146,8 +225,8 @@
                     importOption(option, optionData);
                 }
             }
-            return $.extend(!0, opts, userOptions), "rtl" !== npt.dir && !opts.rightAlign || (npt.style.textAlign = "right"), 
-            "rtl" !== npt.dir && !opts.numericInput || (npt.dir = "ltr", npt.removeAttribute("dir"), 
+            return $.extend(!0, opts, userOptions), "rtl" !== npt.dir && !opts.rightAlign || (npt.style.textAlign = "right"),
+            "rtl" !== npt.dir && !opts.numericInput || (npt.dir = "ltr", npt.removeAttribute("dir"),
             opts.isRTL = !0), Object.keys(userOptions).length;
         }
         Inputmask.prototype = {
@@ -227,15 +306,15 @@
             masksCache: {},
             mask: function mask(elems) {
                 var that = this;
-                return "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)), 
+                return "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)),
                 elems = elems.nodeName ? [ elems ] : elems, $.each(elems, function(ndx, el) {
                     var scopedOpts = $.extend(!0, {}, that.opts);
                     if (importAttributeOptions(el, scopedOpts, $.extend(!0, {}, that.userOptions), that.dataAttribute)) {
                         var maskset = generateMaskSet(scopedOpts, that.noMasksCache);
-                        void 0 !== maskset && (void 0 !== el.inputmask && (el.inputmask.opts.autoUnmask = !0, 
-                        el.inputmask.remove()), el.inputmask = new Inputmask(void 0, void 0, !0), el.inputmask.opts = scopedOpts, 
-                        el.inputmask.noMasksCache = that.noMasksCache, el.inputmask.userOptions = $.extend(!0, {}, that.userOptions), 
-                        el.inputmask.isRTL = scopedOpts.isRTL || scopedOpts.numericInput, el.inputmask.el = el, 
+                        void 0 !== maskset && (void 0 !== el.inputmask && (el.inputmask.opts.autoUnmask = !0,
+                        el.inputmask.remove()), el.inputmask = new Inputmask(void 0, void 0, !0), el.inputmask.opts = scopedOpts,
+                        el.inputmask.noMasksCache = that.noMasksCache, el.inputmask.userOptions = $.extend(!0, {}, that.userOptions),
+                        el.inputmask.isRTL = scopedOpts.isRTL || scopedOpts.numericInput, el.inputmask.el = el,
                         el.inputmask.maskset = maskset, $.data(el, "_inputmask_opts", scopedOpts), maskScope.call(el.inputmask, {
                             action: "mask"
                         }));
@@ -243,11 +322,11 @@
                 }), elems && elems[0] && elems[0].inputmask || this;
             },
             option: function option(options, noremask) {
-                return "string" == typeof options ? this.opts[options] : "object" === _typeof(options) ? ($.extend(this.userOptions, options), 
+                return "string" == typeof options ? this.opts[options] : "object" === _typeof(options) ? ($.extend(this.userOptions, options),
                 this.el && !0 !== noremask && this.mask(this.el), this) : void 0;
             },
             unmaskedvalue: function unmaskedvalue(value) {
-                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache), 
+                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache),
                 maskScope.call(this, {
                     action: "unmaskedvalue",
                     value: value
@@ -259,7 +338,7 @@
                 });
             },
             getemptymask: function getemptymask() {
-                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache), 
+                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache),
                 maskScope.call(this, {
                     action: "getemptymask"
                 });
@@ -268,26 +347,26 @@
                 return !this.opts.autoUnmask;
             },
             isComplete: function isComplete() {
-                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache), 
+                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache),
                 maskScope.call(this, {
                     action: "isComplete"
                 });
             },
             getmetadata: function getmetadata() {
-                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache), 
+                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache),
                 maskScope.call(this, {
                     action: "getmetadata"
                 });
             },
             isValid: function isValid(value) {
-                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache), 
+                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache),
                 maskScope.call(this, {
                     action: "isValid",
                     value: value
                 });
             },
             format: function format(value, metadata) {
-                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache), 
+                return this.maskset = this.maskset || generateMaskSet(this.opts, this.noMasksCache),
                 maskScope.call(this, {
                     action: "format",
                     value: value,
@@ -314,12 +393,12 @@
         }, Inputmask.isValid = function(value, options) {
             return Inputmask(options).isValid(value);
         }, Inputmask.remove = function(elems) {
-            "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)), 
+            "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)),
             elems = elems.nodeName ? [ elems ] : elems, $.each(elems, function(ndx, el) {
                 el.inputmask && el.inputmask.remove();
             });
         }, Inputmask.setValue = function(elems, value) {
-            "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)), 
+            "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)),
             elems = elems.nodeName ? [ elems ] : elems, $.each(elems, function(ndx, el) {
                 el.inputmask ? el.inputmask.setValue(value) : $(el).trigger("setvalue", [ value ]);
             });
@@ -368,13 +447,13 @@
             var ms;
             function generateMask(mask, metadata, opts) {
                 var regexMask = !1, masksetDefinition, maskdefKey;
-                if (null !== mask && "" !== mask || (regexMask = null !== opts.regex, mask = regexMask ? (mask = opts.regex, 
-                mask.replace(/^(\^)(.*)(\$)$/, "$2")) : (regexMask = !0, ".*")), 1 === mask.length && !1 === opts.greedy && 0 !== opts.repeat && (opts.placeholder = ""), 
+                if (null !== mask && "" !== mask || (regexMask = null !== opts.regex, mask = regexMask ? (mask = opts.regex,
+                mask.replace(/^(\^)(.*)(\$)$/, "$2")) : (regexMask = !0, ".*")), 1 === mask.length && !1 === opts.greedy && 0 !== opts.repeat && (opts.placeholder = ""),
                 0 < opts.repeat || "*" === opts.repeat || "+" === opts.repeat) {
                     var repeatStart = "*" === opts.repeat ? 0 : "+" === opts.repeat ? 1 : opts.repeat;
                     mask = opts.groupmarker[0] + mask + opts.groupmarker[1] + opts.quantifiermarker[0] + repeatStart + "," + opts.repeat + opts.quantifiermarker[1];
                 }
-                return maskdefKey = regexMask ? "regex_" + opts.regex : opts.numericInput ? mask.split("").reverse().join("") : mask, 
+                return maskdefKey = regexMask ? "regex_" + opts.regex : opts.numericInput ? mask.split("").reverse().join("") : mask,
                 !1 !== opts.keepStatic && (maskdefKey = "ks_" + maskdefKey), void 0 === Inputmask.prototype.masksCache[maskdefKey] || !0 === nocache ? (masksetDefinition = {
                     mask: mask,
                     maskToken: Inputmask.prototype.analyseMask(mask, regexMask, opts),
@@ -386,8 +465,8 @@
                     metadata: metadata,
                     maskLength: void 0,
                     jitOffset: {}
-                }, !0 !== nocache && (Inputmask.prototype.masksCache[maskdefKey] = masksetDefinition, 
-                masksetDefinition = $.extend(!0, {}, Inputmask.prototype.masksCache[maskdefKey]))) : masksetDefinition = $.extend(!0, {}, Inputmask.prototype.masksCache[maskdefKey]), 
+                }, !0 !== nocache && (Inputmask.prototype.masksCache[maskdefKey] = masksetDefinition,
+                masksetDefinition = $.extend(!0, {}, Inputmask.prototype.masksCache[maskdefKey]))) : masksetDefinition = $.extend(!0, {}, Inputmask.prototype.masksCache[maskdefKey]),
                 masksetDefinition;
             }
             if ($.isFunction(opts.mask) && (opts.mask = opts.mask(opts)), $.isArray(opts.mask)) {
@@ -401,20 +480,20 @@
                     }
                     var altMask = opts.groupmarker[0];
                     return $.each(opts.isRTL ? opts.mask.reverse() : opts.mask, function(ndx, msk) {
-                        1 < altMask.length && (altMask += opts.groupmarker[1] + opts.alternatormarker + opts.groupmarker[0]), 
+                        1 < altMask.length && (altMask += opts.groupmarker[1] + opts.alternatormarker + opts.groupmarker[0]),
                         void 0 === msk.mask || $.isFunction(msk.mask) ? altMask += msk : altMask += msk.mask;
                     }), altMask += opts.groupmarker[1], generateMask(altMask, opts.mask, opts);
                 }
                 opts.mask = opts.mask.pop();
             }
-            return null === opts.keepStatic && (opts.keepStatic = !1), ms = opts.mask && void 0 !== opts.mask.mask && !$.isFunction(opts.mask.mask) ? generateMask(opts.mask.mask, opts.mask, opts) : generateMask(opts.mask, opts.mask, opts), 
+            return null === opts.keepStatic && (opts.keepStatic = !1), ms = opts.mask && void 0 !== opts.mask.mask && !$.isFunction(opts.mask.mask) ? generateMask(opts.mask.mask, opts.mask, opts) : generateMask(opts.mask, opts.mask, opts),
             ms;
         }
         function analyseMask(mask, regexMask, opts) {
             var tokenizer = /(?:[?*+]|\{[0-9+*]+(?:,[0-9+*]*)?(?:\|[0-9+*]*)?\})|[^.?*+^${[]()|\\]+|./g, regexTokenizer = /\[\^?]?(?:[^\\\]]+|\\[\S\s]?)*]?|\\(?:0(?:[0-3][0-7]{0,2}|[4-7][0-7]?)?|[1-9][0-9]*|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|c[A-Za-z]|[\S\s]?)|\((?:\?[:=!]?)?|(?:[?*+]|\{[0-9]+(?:,[0-9]*)?\})\??|[^.?*+^${[()|\\]+|./g, escaped = !1, currentToken = new MaskToken(), match, m, openenings = [], maskTokens = [], openingToken, currentOpeningToken, alternator, lastMatch, closeRegexGroup = !1;
             function MaskToken(isGroup, isOptional, isQuantifier, isAlternator) {
-                this.matches = [], this.openGroup = isGroup || !1, this.alternatorGroup = !1, this.isGroup = isGroup || !1, 
-                this.isOptional = isOptional || !1, this.isQuantifier = isQuantifier || !1, this.isAlternator = isAlternator || !1, 
+                this.matches = [], this.openGroup = isGroup || !1, this.alternatorGroup = !1, this.isGroup = isGroup || !1,
+                this.isOptional = isOptional || !1, this.isQuantifier = isQuantifier || !1, this.isAlternator = isAlternator || !1,
                 this.quantifier = {
                     min: 1,
                     max: 1
@@ -471,25 +550,25 @@
             function verifyGroupMarker(maskToken) {
                 maskToken && maskToken.matches && $.each(maskToken.matches, function(ndx, token) {
                     var nextToken = maskToken.matches[ndx + 1];
-                    (void 0 === nextToken || void 0 === nextToken.matches || !1 === nextToken.isQuantifier) && token && token.isGroup && (token.isGroup = !1, 
-                    regexMask || (insertTestDefinition(token, opts.groupmarker[0], 0), !0 !== token.openGroup && insertTestDefinition(token, opts.groupmarker[1]))), 
+                    (void 0 === nextToken || void 0 === nextToken.matches || !1 === nextToken.isQuantifier) && token && token.isGroup && (token.isGroup = !1,
+                    regexMask || (insertTestDefinition(token, opts.groupmarker[0], 0), !0 !== token.openGroup && insertTestDefinition(token, opts.groupmarker[1]))),
                     verifyGroupMarker(token);
                 });
             }
             function defaultCase() {
                 if (0 < openenings.length) {
-                    if (currentOpeningToken = openenings[openenings.length - 1], insertTestDefinition(currentOpeningToken, m), 
+                    if (currentOpeningToken = openenings[openenings.length - 1], insertTestDefinition(currentOpeningToken, m),
                     currentOpeningToken.isAlternator) {
                         alternator = openenings.pop();
                         for (var mndx = 0; mndx < alternator.matches.length; mndx++) alternator.matches[mndx].isGroup && (alternator.matches[mndx].isGroup = !1);
-                        0 < openenings.length ? (currentOpeningToken = openenings[openenings.length - 1], 
+                        0 < openenings.length ? (currentOpeningToken = openenings[openenings.length - 1],
                         currentOpeningToken.matches.push(alternator)) : currentToken.matches.push(alternator);
                     }
                 } else insertTestDefinition(currentToken, m);
             }
             function reverseTokens(maskToken) {
                 function reverseStatic(st) {
-                    return st === opts.optionalmarker[0] ? st = opts.optionalmarker[1] : st === opts.optionalmarker[1] ? st = opts.optionalmarker[0] : st === opts.groupmarker[0] ? st = opts.groupmarker[1] : st === opts.groupmarker[1] && (st = opts.groupmarker[0]), 
+                    return st === opts.optionalmarker[0] ? st = opts.optionalmarker[1] : st === opts.optionalmarker[1] ? st = opts.optionalmarker[0] : st === opts.groupmarker[0] ? st = opts.groupmarker[1] : st === opts.groupmarker[1] && (st = opts.groupmarker[0]),
                     st;
                 }
                 for (var match in maskToken.matches = maskToken.matches.reverse(), maskToken.matches) if (Object.prototype.hasOwnProperty.call(maskToken.matches, match)) {
@@ -508,19 +587,19 @@
             }
             function closeGroup() {
                 if (openingToken = openenings.pop(), openingToken.openGroup = !1, void 0 !== openingToken) if (0 < openenings.length) {
-                    if (currentOpeningToken = openenings[openenings.length - 1], currentOpeningToken.matches.push(openingToken), 
+                    if (currentOpeningToken = openenings[openenings.length - 1], currentOpeningToken.matches.push(openingToken),
                     currentOpeningToken.isAlternator) {
                         alternator = openenings.pop();
-                        for (var mndx = 0; mndx < alternator.matches.length; mndx++) alternator.matches[mndx].isGroup = !1, 
+                        for (var mndx = 0; mndx < alternator.matches.length; mndx++) alternator.matches[mndx].isGroup = !1,
                         alternator.matches[mndx].alternatorGroup = !1;
-                        0 < openenings.length ? (currentOpeningToken = openenings[openenings.length - 1], 
+                        0 < openenings.length ? (currentOpeningToken = openenings[openenings.length - 1],
                         currentOpeningToken.matches.push(alternator)) : currentToken.matches.push(alternator);
                     }
                 } else currentToken.matches.push(openingToken); else defaultCase();
             }
             function groupQuantifier(matches) {
                 var lastMatch = matches.pop();
-                return lastMatch.isQuantifier && (lastMatch = groupify([ matches.pop(), lastMatch ])), 
+                return lastMatch.isQuantifier && (lastMatch = groupify([ matches.pop(), lastMatch ])),
                 lastMatch;
             }
             for (regexMask && (opts.optionalmarker[0] = void 0, opts.optionalmarker[1] = void 0); match = regexMask ? regexTokenizer.exec(mask) : tokenizer.exec(mask); ) {
@@ -537,7 +616,7 @@
                   case "|":
                     if (0 === openenings.length) {
                         var altRegexGroup = groupify(currentToken.matches);
-                        altRegexGroup.openGroup = !0, openenings.push(altRegexGroup), currentToken.matches = [], 
+                        altRegexGroup.openGroup = !0, openenings.push(altRegexGroup), currentToken.matches = [],
                         closeRegexGroup = !0;
                     }
                     break;
@@ -596,8 +675,8 @@
                         var subToken = currentOpeningToken.matches[currentOpeningToken.matches.length - 1];
                         lastMatch = currentOpeningToken.openGroup && (void 0 === subToken.matches || !1 === subToken.isGroup && !1 === subToken.isAlternator) ? openenings.pop() : groupQuantifier(currentOpeningToken.matches);
                     } else lastMatch = groupQuantifier(currentToken.matches);
-                    if (lastMatch.isAlternator) openenings.push(lastMatch); else if (lastMatch.alternatorGroup ? (alternator = openenings.pop(), 
-                    lastMatch.alternatorGroup = !1) : alternator = new MaskToken(!1, !1, !1, !0), alternator.matches.push(lastMatch), 
+                    if (lastMatch.isAlternator) openenings.push(lastMatch); else if (lastMatch.alternatorGroup ? (alternator = openenings.pop(),
+                    lastMatch.alternatorGroup = !1) : alternator = new MaskToken(!1, !1, !1, !0), alternator.matches.push(lastMatch),
                     openenings.push(alternator), lastMatch.openGroup) {
                         lastMatch.openGroup = !1;
                         var alternatorGroup = new MaskToken(!0);
@@ -609,9 +688,9 @@
                     defaultCase();
                 }
             }
-            for (closeRegexGroup && closeGroup(); 0 < openenings.length; ) openingToken = openenings.pop(), 
+            for (closeRegexGroup && closeGroup(); 0 < openenings.length; ) openingToken = openenings.pop(),
             currentToken.matches.push(openingToken);
-            return 0 < currentToken.matches.length && (verifyGroupMarker(currentToken), maskTokens.push(currentToken)), 
+            return 0 < currentToken.matches.length && (verifyGroupMarker(currentToken), maskTokens.push(currentToken)),
             (opts.numericInput || opts.isRTL) && reverseTokens(maskTokens[0]), maskTokens;
         }
         module.exports = {
@@ -629,7 +708,7 @@
         var $ = __webpack_require__(4), window = __webpack_require__(6), document = window.document, ua = window.navigator && window.navigator.userAgent || "", ie = 0 < ua.indexOf("MSIE ") || 0 < ua.indexOf("Trident/"), mobile = isInputEventSupported("touchstart"), iemobile = /iemobile/i.test(ua), iphone = /iphone/i.test(ua) && !iemobile;
         function isInputEventSupported(eventName) {
             var el = document.createElement("input"), evName = "on" + eventName, isSupported = evName in el;
-            return isSupported || (el.setAttribute(evName, "return;"), isSupported = "function" == typeof el[evName]), 
+            return isSupported || (el.setAttribute(evName, "return;"), isSupported = "function" == typeof el[evName]),
             el = null, isSupported;
         }
         module.exports = function maskScope(actionObj, maskset, opts) {
@@ -640,16 +719,16 @@
                 clearOptionalTail && (opts.greedy = !1), minimalPos = minimalPos || 0;
                 var maskTemplate = [], ndxIntlzr, pos = 0, test, testPos;
                 do {
-                    if (!0 === baseOnInput && maskset.validPositions[pos]) testPos = clearOptionalTail && !0 === maskset.validPositions[pos].match.optionality && void 0 === maskset.validPositions[pos + 1] && (!0 === maskset.validPositions[pos].generatedInput || maskset.validPositions[pos].input == opts.skipOptionalPartCharacter && 0 < pos) ? determineTestTemplate(pos, getTests(pos, ndxIntlzr, pos - 1)) : maskset.validPositions[pos], 
+                    if (!0 === baseOnInput && maskset.validPositions[pos]) testPos = clearOptionalTail && !0 === maskset.validPositions[pos].match.optionality && void 0 === maskset.validPositions[pos + 1] && (!0 === maskset.validPositions[pos].generatedInput || maskset.validPositions[pos].input == opts.skipOptionalPartCharacter && 0 < pos) ? determineTestTemplate(pos, getTests(pos, ndxIntlzr, pos - 1)) : maskset.validPositions[pos],
                     test = testPos.match, ndxIntlzr = testPos.locator.slice(), maskTemplate.push(!0 === includeMode ? testPos.input : !1 === includeMode ? test.nativeDef : getPlaceholder(pos, test)); else {
                         testPos = getTestTemplate(pos, ndxIntlzr, pos - 1), test = testPos.match, ndxIntlzr = testPos.locator.slice();
                         var jitMasking = !0 !== noJit && (!1 !== opts.jitMasking ? opts.jitMasking : test.jit);
                         (!1 === jitMasking || void 0 === jitMasking || "number" == typeof jitMasking && isFinite(jitMasking) && pos < jitMasking) && maskTemplate.push(!1 === includeMode ? test.nativeDef : getPlaceholder(pos, test));
                     }
-                    "auto" === opts.keepStatic && test.newBlockMarker && !0 !== test.static && (opts.keepStatic = pos - 1), 
+                    "auto" === opts.keepStatic && test.newBlockMarker && !0 !== test.static && (opts.keepStatic = pos - 1),
                     pos++;
                 } while ((void 0 === maxLength || pos < maxLength) && (!0 !== test.static || "" !== test.def) || pos < minimalPos);
-                return "" === maskTemplate[maskTemplate.length - 1] && maskTemplate.pop(), !1 === includeMode && void 0 !== maskset.maskLength || (maskset.maskLength = pos - 1), 
+                return "" === maskTemplate[maskTemplate.length - 1] && maskTemplate.pop(), !1 === includeMode && void 0 !== maskset.maskLength || (maskset.maskLength = pos - 1),
                 opts.greedy = greedy, maskTemplate;
             }
             function resetMaskSet(soft) {
@@ -659,14 +738,14 @@
                 var before = -1, after = -1, valids = validPositions || maskset.validPositions;
                 for (var posNdx in void 0 === closestTo && (closestTo = -1), valids) {
                     var psNdx = parseInt(posNdx);
-                    valids[psNdx] && (strict || !0 !== valids[psNdx].generatedInput) && (psNdx <= closestTo && (before = psNdx), 
+                    valids[psNdx] && (strict || !0 !== valids[psNdx].generatedInput) && (psNdx <= closestTo && (before = psNdx),
                     closestTo <= psNdx && (after = psNdx));
                 }
                 return -1 === before || before == closestTo ? after : -1 == after ? before : closestTo - before < after - closestTo ? before : after;
             }
             function getDecisionTaker(tst) {
                 var decisionTaker = tst.locator[tst.alternation];
-                return "string" == typeof decisionTaker && 0 < decisionTaker.length && (decisionTaker = decisionTaker.split(",")[0]), 
+                return "string" == typeof decisionTaker && 0 < decisionTaker.length && (decisionTaker = decisionTaker.split(",")[0]),
                 void 0 !== decisionTaker ? decisionTaker.toString() : "";
             }
             function getLocator(tst, align) {
@@ -680,7 +759,7 @@
                     var tst = tests[ndx];
                     tstLocator = getLocator(tst, targetLocator.length);
                     var distance = Math.abs(tstLocator - targetLocator);
-                    (void 0 === closest || "" !== tstLocator && distance < closest || bestMatch && !opts.greedy && bestMatch.match.optionality && "master" === bestMatch.match.newBlockMarker && (!tst.match.optionality || !tst.match.newBlockMarker) || bestMatch && bestMatch.match.optionalQuantifier && !tst.match.optionalQuantifier) && (closest = distance, 
+                    (void 0 === closest || "" !== tstLocator && distance < closest || bestMatch && !opts.greedy && bestMatch.match.optionality && "master" === bestMatch.match.newBlockMarker && (!tst.match.optionality || !tst.match.newBlockMarker) || bestMatch && bestMatch.match.optionalQuantifier && !tst.match.optionalQuantifier) && (closest = distance,
                     bestMatch = tst);
                 }
                 return bestMatch;
@@ -696,7 +775,7 @@
                     valid = !0;
                     break;
                 }
-                return !1 === valid && void 0 !== maskset.jitOffset[pos] && (valid = positionCanMatchDefinition(pos + maskset.jitOffset[pos], testDefinition, opts)), 
+                return !1 === valid && void 0 !== maskset.jitOffset[pos] && (valid = positionCanMatchDefinition(pos + maskset.jitOffset[pos], testDefinition, opts)),
                 valid;
             }
             function getTests(pos, ndxIntlzr, tstPs) {
@@ -706,7 +785,7 @@
                         function isFirstMatch(latestMatch, tokenGroup) {
                             var firstMatch = 0 === $.inArray(latestMatch, tokenGroup.matches);
                             return firstMatch || $.each(tokenGroup.matches, function(ndx, match) {
-                                if (!0 === match.isQuantifier ? firstMatch = isFirstMatch(latestMatch, tokenGroup.matches[ndx - 1]) : Object.prototype.hasOwnProperty.call(match, "matches") && (firstMatch = isFirstMatch(latestMatch, match)), 
+                                if (!0 === match.isQuantifier ? firstMatch = isFirstMatch(latestMatch, tokenGroup.matches[ndx - 1]) : Object.prototype.hasOwnProperty.call(match, "matches") && (firstMatch = isFirstMatch(latestMatch, match)),
                                 firstMatch) return !1;
                             }), firstMatch;
                         }
@@ -715,7 +794,7 @@
                             if ((maskset.tests[pos] || maskset.validPositions[pos]) && $.each(maskset.tests[pos] || [ maskset.validPositions[pos] ], function(ndx, lmnt) {
                                 if (lmnt.mloc[alternateNdx]) return bestMatch = lmnt, !1;
                                 var alternation = void 0 !== targetAlternation ? targetAlternation : lmnt.alternation, ndxPos = void 0 !== lmnt.locator[alternation] ? lmnt.locator[alternation].toString().indexOf(alternateNdx) : -1;
-                                (void 0 === indexPos || ndxPos < indexPos) && -1 !== ndxPos && (bestMatch = lmnt, 
+                                (void 0 === indexPos || ndxPos < indexPos) && -1 !== ndxPos && (bestMatch = lmnt,
                                 indexPos = ndxPos);
                             }), bestMatch) {
                                 var bestMatchAltIndex = bestMatch.locator[bestMatch.alternation], locator = bestMatch.mloc[alternateNdx] || bestMatch.mloc[bestMatchAltIndex] || bestMatch.locator;
@@ -725,7 +804,7 @@
                         }
                         function isSubsetOf(source, target) {
                             function expand(pattern) {
-                                for (var expanded = [], start = -1, end, i = 0, l = pattern.length; i < l; i++) if ("-" === pattern.charAt(i)) for (end = pattern.charCodeAt(i + 1); ++start < end; ) expanded.push(String.fromCharCode(start)); else start = pattern.charCodeAt(i), 
+                                for (var expanded = [], start = -1, end, i = 0, l = pattern.length; i < l; i++) if ("-" === pattern.charAt(i)) for (end = pattern.charCodeAt(i + 1); ++start < end; ) expanded.push(String.fromCharCode(start)); else start = pattern.charCodeAt(i),
                                 expanded.push(pattern.charAt(i));
                                 return expanded.join("");
                             }
@@ -739,9 +818,9 @@
                                 targetMatch.mloc = targetMatch.mloc || {};
                                 var locNdx = targetMatch.locator[targetMatch.alternation];
                                 if (void 0 !== locNdx) {
-                                    if ("string" == typeof locNdx && (locNdx = locNdx.split(",")[0]), void 0 === targetMatch.mloc[locNdx] && (targetMatch.mloc[locNdx] = targetMatch.locator.slice()), 
+                                    if ("string" == typeof locNdx && (locNdx = locNdx.split(",")[0]), void 0 === targetMatch.mloc[locNdx] && (targetMatch.mloc[locNdx] = targetMatch.locator.slice()),
                                     void 0 !== altMatch) {
-                                        for (var ndx in altMatch.mloc) "string" == typeof ndx && (ndx = ndx.split(",")[0]), 
+                                        for (var ndx in altMatch.mloc) "string" == typeof ndx && (ndx = ndx.split(",")[0]),
                                         void 0 === targetMatch.mloc[ndx] && (targetMatch.mloc[ndx] = altMatch.mloc[ndx]);
                                         targetMatch.locator[targetMatch.alternation] = Object.keys(targetMatch.mloc).join(",");
                                     }
@@ -760,11 +839,11 @@
                         }), !0;
                         if (void 0 !== match.matches) {
                             if (match.isGroup && quantifierRecurse !== match) {
-                                if (match = handleMatch(maskToken.matches[$.inArray(match, maskToken.matches) + 1], loopNdx, quantifierRecurse), 
+                                if (match = handleMatch(maskToken.matches[$.inArray(match, maskToken.matches) + 1], loopNdx, quantifierRecurse),
                                 match) return !0;
                             } else if (match.isOptional) {
                                 var optionalToken = match, mtchsNdx = matches.length;
-                                if (match = resolveTestFromToken(match, ndxInitializer, loopNdx, quantifierRecurse), 
+                                if (match = resolveTestFromToken(match, ndxInitializer, loopNdx, quantifierRecurse),
                                 match) {
                                     if ($.each(matches, function(ndx, mtch) {
                                         mtchsNdx <= ndx && (mtch.match.optionality = !0);
@@ -782,12 +861,12 @@
                                     }
                                     (!0 === opts.keepStatic || isFinite(parseInt(opts.keepStatic)) && currentPos >= opts.keepStatic) && (altIndexArr = altIndexArr.slice(0, 1));
                                     for (var unMatchedAlternation = !1, ndx = 0; ndx < altIndexArr.length; ndx++) {
-                                        amndx = parseInt(altIndexArr[ndx]), matches = [], ndxInitializer = "string" == typeof altIndex && resolveNdxInitializer(testPos, amndx, loopNdxCnt) || ndxInitializerClone.slice(), 
-                                        alternateToken.matches[amndx] && handleMatch(alternateToken.matches[amndx], [ amndx ].concat(loopNdx), quantifierRecurse) ? match = !0 : 0 === ndx && (unMatchedAlternation = !0), 
+                                        amndx = parseInt(altIndexArr[ndx]), matches = [], ndxInitializer = "string" == typeof altIndex && resolveNdxInitializer(testPos, amndx, loopNdxCnt) || ndxInitializerClone.slice(),
+                                        alternateToken.matches[amndx] && handleMatch(alternateToken.matches[amndx], [ amndx ].concat(loopNdx), quantifierRecurse) ? match = !0 : 0 === ndx && (unMatchedAlternation = !0),
                                         maltMatches = matches.slice(), testPos = currentPos, matches = [];
                                         for (var ndx1 = 0; ndx1 < maltMatches.length; ndx1++) {
                                             var altMatch = maltMatches[ndx1], dropMatch = !1;
-                                            altMatch.match.jit = altMatch.match.jit || unMatchedAlternation, altMatch.alternation = altMatch.alternation || loopNdxCnt, 
+                                            altMatch.match.jit = altMatch.match.jit || unMatchedAlternation, altMatch.alternation = altMatch.alternation || loopNdxCnt,
                                             setMergeLocators(altMatch);
                                             for (var ndx2 = 0; ndx2 < malternateMatches.length; ndx2++) {
                                                 var altMatch2 = malternateMatches[ndx2];
@@ -813,23 +892,23 @@
                                             dropMatch || malternateMatches.push(altMatch);
                                         }
                                     }
-                                    matches = currentMatches.concat(malternateMatches), testPos = pos, insertStop = 0 < matches.length, 
+                                    matches = currentMatches.concat(malternateMatches), testPos = pos, insertStop = 0 < matches.length,
                                     match = 0 < malternateMatches.length, ndxInitializer = ndxInitializerClone.slice();
                                 } else match = handleMatch(alternateToken.matches[altIndex] || maskToken.matches[altIndex], [ altIndex ].concat(loopNdx), quantifierRecurse);
                                 if (match) return !0;
                             } else if (match.isQuantifier && quantifierRecurse !== maskToken.matches[$.inArray(match, maskToken.matches) - 1]) for (var qt = match, qndx = 0 < ndxInitializer.length ? ndxInitializer.shift() : 0; qndx < (isNaN(qt.quantifier.max) ? qndx + 1 : qt.quantifier.max) && testPos <= pos; qndx++) {
                                 var tokenGroup = maskToken.matches[$.inArray(qt, maskToken.matches) - 1];
                                 if (match = handleMatch(tokenGroup, [ qndx ].concat(loopNdx), tokenGroup), match) {
-                                    if (latestMatch = matches[matches.length - 1].match, latestMatch.optionalQuantifier = qndx >= qt.quantifier.min, 
-                                    latestMatch.jit = (qndx || 1) * tokenGroup.matches.indexOf(latestMatch) >= qt.quantifier.jit, 
+                                    if (latestMatch = matches[matches.length - 1].match, latestMatch.optionalQuantifier = qndx >= qt.quantifier.min,
+                                    latestMatch.jit = (qndx || 1) * tokenGroup.matches.indexOf(latestMatch) >= qt.quantifier.jit,
                                     latestMatch.optionalQuantifier && isFirstMatch(latestMatch, tokenGroup)) {
                                         insertStop = !0, testPos = pos;
                                         break;
                                     }
-                                    return latestMatch.jit && (maskset.jitOffset[pos] = tokenGroup.matches.length - tokenGroup.matches.indexOf(latestMatch)), 
+                                    return latestMatch.jit && (maskset.jitOffset[pos] = tokenGroup.matches.length - tokenGroup.matches.indexOf(latestMatch)),
                                     !0;
                                 }
-                            } else if (match = resolveTestFromToken(match, ndxInitializer, loopNdx, quantifierRecurse), 
+                            } else if (match = resolveTestFromToken(match, ndxInitializer, loopNdx, quantifierRecurse),
                             match) return !0;
                         } else testPos++;
                     }
@@ -841,7 +920,7 @@
                 }
                 function mergeLocators(pos, tests) {
                     var locator = [];
-                    return $.isArray(tests) || (tests = [ tests ]), 0 < tests.length && (void 0 === tests[0].alternation || !0 === opts.keepStatic ? (locator = determineTestTemplate(pos, tests.slice()).locator.slice(), 
+                    return $.isArray(tests) || (tests = [ tests ]), 0 < tests.length && (void 0 === tests[0].alternation || !0 === opts.keepStatic ? (locator = determineTestTemplate(pos, tests.slice()).locator.slice(),
                     0 === locator.length && (locator = tests[0].locator.slice())) : $.each(tests, function(ndx, tst) {
                         if ("" !== tst.def) if (0 === locator.length) locator = tst.locator.slice(); else for (var i = 0; i < locator.length; i++) tst.locator[i] && -1 === locator[i].toString().indexOf(tst.locator[i]) && (locator[i] += "," + tst.locator[i]);
                     })), locator;
@@ -849,7 +928,7 @@
                 if (-1 < pos && (void 0 === maxLength || pos < maxLength)) {
                     if (void 0 === ndxIntlzr) {
                         for (var previousPos = pos - 1, test; void 0 === (test = maskset.validPositions[previousPos] || maskset.tests[previousPos]) && -1 < previousPos; ) previousPos--;
-                        void 0 !== test && -1 < previousPos && (ndxInitializer = mergeLocators(previousPos, test), 
+                        void 0 !== test && -1 < previousPos && (ndxInitializer = mergeLocators(previousPos, test),
                         cacheDependency = ndxInitializer.join(""), testPos = previousPos);
                     }
                     if (maskset.tests[pos] && maskset.tests[pos][0].cd === cacheDependency) return maskset.tests[pos];
@@ -870,20 +949,20 @@
                     locator: [],
                     mloc: {},
                     cd: cacheDependency
-                }), void 0 !== ndxIntlzr && maskset.tests[pos] ? $.extend(!0, [], matches) : (maskset.tests[pos] = $.extend(!0, [], matches), 
+                }), void 0 !== ndxIntlzr && maskset.tests[pos] ? $.extend(!0, [], matches) : (maskset.tests[pos] = $.extend(!0, [], matches),
                 maskset.tests[pos]);
             }
             function getBufferTemplate() {
-                return void 0 === maskset._buffer && (maskset._buffer = getMaskTemplate(!1, 1), 
+                return void 0 === maskset._buffer && (maskset._buffer = getMaskTemplate(!1, 1),
                 void 0 === maskset.buffer && (maskset.buffer = maskset._buffer.slice())), maskset._buffer;
             }
             function getBuffer(noCache) {
-                return void 0 !== maskset.buffer && !0 !== noCache || (maskset.buffer = getMaskTemplate(!0, getLastValidPosition(), !0), 
+                return void 0 !== maskset.buffer && !0 !== noCache || (maskset.buffer = getMaskTemplate(!0, getLastValidPosition(), !0),
                 void 0 === maskset._buffer && (maskset._buffer = maskset.buffer.slice())), maskset.buffer;
             }
             function refreshFromBuffer(start, end, buffer) {
                 var i, p, skipOptionalPartCharacter = opts.skipOptionalPartCharacter;
-                if (opts.skipOptionalPartCharacter = "", !0 === start) resetMaskSet(), maskset.tests = {}, 
+                if (opts.skipOptionalPartCharacter = "", !0 === start) resetMaskSet(), maskset.tests = {},
                 start = 0, end = buffer.length; else for (i = start; i < end; i++) delete maskset.validPositions[i];
                 for (p = start, i = start; i < end; i++) {
                     var valResult = isValid(p, buffer[i], !opts.negationSymbol || [ i ] !== opts.negationSymbol.front, !opts.negationSymbol || [ i ] !== opts.negationSymbol.front);
@@ -927,23 +1006,23 @@
                 function insertPosition(insert) {
                     if (insert && isValidRslt && void 0 !== c) {
                         var targetLvp = getLastValidPosition(pos) + 1;
-                        for (i = decisionPos; i < getLastValidPosition() + 1; i++) validPos = maskset.validPositions[i], 
+                        for (i = decisionPos; i < getLastValidPosition() + 1; i++) validPos = maskset.validPositions[i],
                         (void 0 === validPos || 1 == validPos.match.static) && i < pos + posOffset && posOffset++;
                         pos += posOffset, isValidRslt = returnRslt = isValid(targetLvp < pos ? targetLvp : pos, c, strict, fromIsValid, !0);
                     }
                 }
-                if (-1 === lAltPos && void 0 === rAltPos) lastAlt = 0, prevAltPos = getTest(lastAlt), 
-                alternation = prevAltPos.alternation; else for (;0 <= lAltPos; lAltPos--) if (altPos = maskset.validPositions[lAltPos], 
+                if (-1 === lAltPos && void 0 === rAltPos) lastAlt = 0, prevAltPos = getTest(lastAlt),
+                alternation = prevAltPos.alternation; else for (;0 <= lAltPos; lAltPos--) if (altPos = maskset.validPositions[lAltPos],
                 altPos && void 0 !== altPos.alternation) {
                     if (prevAltPos && prevAltPos.locator[altPos.alternation] !== altPos.locator[altPos.alternation]) break;
                     lastAlt = lAltPos, alternation = maskset.validPositions[lastAlt].alternation, prevAltPos = altPos;
                 }
                 if (void 0 !== alternation) {
-                    decisionPos = parseInt(lastAlt), maskset.excludes[decisionPos] = maskset.excludes[decisionPos] || [], 
+                    decisionPos = parseInt(lastAlt), maskset.excludes[decisionPos] = maskset.excludes[decisionPos] || [],
                     !0 !== pos && maskset.excludes[decisionPos].push(getDecisionTaker(prevAltPos));
                     var validInputsClone = [], staticInputsBeforePos = 0;
-                    for (i = decisionPos; i < getLastValidPosition(void 0, !0) + 1; i++) validPos = maskset.validPositions[i], 
-                    validPos && !0 !== validPos.generatedInput ? validInputsClone.push(validPos.input) : i < pos && staticInputsBeforePos++, 
+                    for (i = decisionPos; i < getLastValidPosition(void 0, !0) + 1; i++) validPos = maskset.validPositions[i],
+                    validPos && !0 !== validPos.generatedInput ? validInputsClone.push(validPos.input) : i < pos && staticInputsBeforePos++,
                     delete maskset.validPositions[i];
                     for (;void 0 !== maskset.excludes[decisionPos] && maskset.excludes[decisionPos].length < 10; ) {
                         var posOffset = -1 * staticInputsBeforePos, validInputs = validInputsClone.slice();
@@ -952,7 +1031,7 @@
                             if (!(isValidRslt = isValid(isValidRslt.caret || getLastValidPosition(void 0, !0) + 1, input, !1, fromIsValid, !0))) break;
                         }
                         if (insertPosition(0 < pos), isValidRslt) break;
-                        if (resetMaskSet(), prevAltPos = getTest(decisionPos), maskset.validPositions = $.extend(!0, {}, validPsClone), 
+                        if (resetMaskSet(), prevAltPos = getTest(decisionPos), maskset.validPositions = $.extend(!0, {}, validPsClone),
                         !maskset.excludes[decisionPos]) {
                             returnRslt = alternate(pos, c, strict, fromIsValid, decisionPos - 1);
                             break;
@@ -975,7 +1054,7 @@
                 var maskPos = pos;
                 function processCommandObject(commandObj) {
                     if (void 0 !== commandObj) {
-                        if (void 0 !== commandObj.remove && ($.isArray(commandObj.remove) || (commandObj.remove = [ commandObj.remove ]), 
+                        if (void 0 !== commandObj.remove && ($.isArray(commandObj.remove) || (commandObj.remove = [ commandObj.remove ]),
                         $.each(commandObj.remove.sort(function(a, b) {
                             return b.pos - a.pos;
                         }), function(ndx, lmnt) {
@@ -983,17 +1062,17 @@
                                 begin: lmnt,
                                 end: lmnt + 1
                             });
-                        }), commandObj.remove = void 0), void 0 !== commandObj.insert && ($.isArray(commandObj.insert) || (commandObj.insert = [ commandObj.insert ]), 
+                        }), commandObj.remove = void 0), void 0 !== commandObj.insert && ($.isArray(commandObj.insert) || (commandObj.insert = [ commandObj.insert ]),
                         $.each(commandObj.insert.sort(function(a, b) {
                             return a.pos - b.pos;
                         }), function(ndx, lmnt) {
                             "" !== lmnt.c && isValid(lmnt.pos, lmnt.c, void 0 === lmnt.strict || lmnt.strict, void 0 !== lmnt.fromIsValid ? lmnt.fromIsValid : fromIsValid);
                         }), commandObj.insert = void 0), commandObj.refreshFromBuffer && commandObj.buffer) {
                             var refresh = commandObj.refreshFromBuffer;
-                            refreshFromBuffer(!0 === refresh ? refresh : refresh.start, refresh.end, commandObj.buffer), 
+                            refreshFromBuffer(!0 === refresh ? refresh : refresh.start, refresh.end, commandObj.buffer),
                             commandObj.refreshFromBuffer = void 0;
                         }
-                        void 0 !== commandObj.rewritePosition && (maskPos = commandObj.rewritePosition, 
+                        void 0 !== commandObj.rewritePosition && (maskPos = commandObj.rewritePosition,
                         commandObj = !0);
                     }
                     return commandObj;
@@ -1007,8 +1086,8 @@
                             pos: position
                         }, !1 !== rslt) {
                             var elem = void 0 !== rslt.c ? rslt.c : c, validatedPos = position;
-                            return elem = elem === opts.skipOptionalPartCharacter && !0 === test.static ? getPlaceholder(position, test, !0) || test.def : elem, 
-                            rslt = processCommandObject(rslt), !0 !== rslt && void 0 !== rslt.pos && rslt.pos !== position && (validatedPos = rslt.pos), 
+                            return elem = elem === opts.skipOptionalPartCharacter && !0 === test.static ? getPlaceholder(position, test, !0) || test.def : elem,
+                            rslt = processCommandObject(rslt), !0 !== rslt && void 0 !== rslt.pos && rslt.pos !== position && (validatedPos = rslt.pos),
                             !0 !== rslt && void 0 === rslt.pos && void 0 === rslt.c ? !1 : (revalidateMask(pos, $.extend({}, tst, {
                                 input: casing(elem, test, validatedPos)
                             }), fromIsValid, validatedPos) || (rslt = !1), !1);
@@ -1017,7 +1096,7 @@
                 }
                 void 0 !== pos.begin && (maskPos = isRTL ? pos.end : pos.begin);
                 var result = !0, positionsClone = $.extend(!0, {}, maskset.validPositions);
-                if ($.isFunction(opts.preValidation) && !strict && !0 !== fromIsValid && !0 !== validateOnly && !0 !== fromAlternate && (result = opts.preValidation(getBuffer(), maskPos, c, isSelection(pos), opts, maskset, pos), 
+                if ($.isFunction(opts.preValidation) && !strict && !0 !== fromIsValid && !0 !== validateOnly && !0 !== fromAlternate && (result = opts.preValidation(getBuffer(), maskPos, c, isSelection(pos), opts, maskset, pos),
                 result = processCommandObject(result)), !0 === result) {
                     if (void 0 === maxLength || maskPos < maxLength) {
                         if (result = _isValid(maskPos, c, strict), (!strict || !0 === fromIsValid) && !1 === result && !0 !== validateOnly) {
@@ -1025,11 +1104,11 @@
                             if (!currentPosValid || !0 !== currentPosValid.match.static || currentPosValid.match.def !== c && c !== opts.skipOptionalPartCharacter) {
                                 if (opts.insertMode || void 0 === maskset.validPositions[seekNext(maskPos)] || pos.end > maskPos) {
                                     var skip = !1;
-                                    if (maskset.jitOffset[maskPos] && void 0 === maskset.validPositions[seekNext(maskPos)] && (result = isValid(maskPos + maskset.jitOffset[maskPos], c, !0), 
-                                    !1 !== result && (!0 !== fromAlternate && (result.caret = maskPos), skip = !0)), 
-                                    pos.end > maskPos && (maskset.validPositions[maskPos] = void 0), !skip && !isMask(maskPos, !0)) for (var nPos = maskPos + 1, snPos = seekNext(maskPos); nPos <= snPos; nPos++) if (result = _isValid(nPos, c, strict), 
+                                    if (maskset.jitOffset[maskPos] && void 0 === maskset.validPositions[seekNext(maskPos)] && (result = isValid(maskPos + maskset.jitOffset[maskPos], c, !0),
+                                    !1 !== result && (!0 !== fromAlternate && (result.caret = maskPos), skip = !0)),
+                                    pos.end > maskPos && (maskset.validPositions[maskPos] = void 0), !skip && !isMask(maskPos, !0)) for (var nPos = maskPos + 1, snPos = seekNext(maskPos); nPos <= snPos; nPos++) if (result = _isValid(nPos, c, strict),
                                     !1 !== result) {
-                                        result = trackbackPositions(maskPos, void 0 !== result.pos ? result.pos : nPos) || result, 
+                                        result = trackbackPositions(maskPos, void 0 !== result.pos ? result.pos : nPos) || result,
                                         maskPos = nPos;
                                         break;
                                     }
@@ -1039,7 +1118,7 @@
                             };
                         }
                     } else result = !1;
-                    !1 !== result || !1 === opts.keepStatic || null != opts.regex && !isComplete(getBuffer()) || strict || !0 === fromAlternate || (result = alternate(maskPos, c, strict, fromIsValid)), 
+                    !1 !== result || !1 === opts.keepStatic || null != opts.regex && !isComplete(getBuffer()) || strict || !0 === fromAlternate || (result = alternate(maskPos, c, strict, fromIsValid)),
                     !0 === result && (result = {
                         pos: maskPos
                     });
@@ -1048,7 +1127,7 @@
                     var postResult = opts.postValidation(getBuffer(!0), void 0 !== pos.begin ? isRTL ? pos.end : pos.begin : pos, result, opts, maskset);
                     void 0 !== postResult && (result = !0 === postResult ? result : postResult);
                 }
-                result && void 0 === result.pos && (result.pos = maskPos), !1 === result || !0 === validateOnly ? (resetMaskSet(!0), 
+                result && void 0 === result.pos && (result.pos = maskPos), !1 === result || !0 === validateOnly ? (resetMaskSet(!0),
                 maskset.validPositions = $.extend(!0, {}, positionsClone)) : trackbackPositions(void 0, maskPos, !0);
                 var endResult = processCommandObject(result);
                 return endResult;
@@ -1078,13 +1157,13 @@
                     return prevMatch && nextMatch;
                 }
                 var begin = void 0 !== pos.begin ? pos.begin : pos, end = void 0 !== pos.end ? pos.end : pos;
-                if (pos.begin > pos.end && (begin = pos.end, end = pos.begin), void 0 === validTest && !1 === opts.insertMode && end < maskset.maskLength && (0 === begin && 0 === end || (begin += 1, 
+                if (pos.begin > pos.end && (begin = pos.end, end = pos.begin), void 0 === validTest && !1 === opts.insertMode && end < maskset.maskLength && (0 === begin && 0 === end || (begin += 1,
                 end += 1)), validatedPos = void 0 !== validatedPos ? validatedPos : begin, begin !== end || opts.insertMode && void 0 !== maskset.validPositions[validatedPos] && void 0 === fromIsValid || void 0 === validTest) {
                     var positionsClone = $.extend(!0, {}, maskset.validPositions), lvp = void 0 === validTest && !1 === opts.insertMode ? 1 < end ? end - 1 : end : getLastValidPosition(void 0, !0), i;
-                    for (maskset.p = begin, i = lvp; begin <= i; i--) delete maskset.validPositions[i], 
+                    for (maskset.p = begin, i = lvp; begin <= i; i--) delete maskset.validPositions[i],
                     void 0 === validTest && delete maskset.tests[i + 1];
                     var valid = !0, j = validatedPos, posMatch = j;
-                    if (i = j, validTest && (maskset.validPositions[validatedPos] = $.extend(!0, {}, validTest), 
+                    if (i = j, validTest && (maskset.validPositions[validatedPos] = $.extend(!0, {}, validTest),
                     posMatch++, j++, begin < end && i++), validTest || opts.insertMode) for (;i <= lvp; i++) {
                         var t = positionsClone[i];
                         if (void 0 !== t && !0 !== t.generatedInput && (end <= i || begin <= i && IsEnclosedStatic(i, positionsClone, {
@@ -1105,7 +1184,7 @@
                         }
                         if (!valid) break;
                     }
-                    if (!valid) return maskset.validPositions = $.extend(!0, {}, positionsClone), resetMaskSet(!0), 
+                    if (!valid) return maskset.validPositions = $.extend(!0, {}, positionsClone), resetMaskSet(!0),
                     !1;
                 } else validTest && (maskset.validPositions[validatedPos] = $.extend(!0, {}, validTest));
                 return resetMaskSet(!0), !0;
@@ -1126,7 +1205,7 @@
             function seekPrevious(pos, newBlock) {
                 var position = pos, tests;
                 if (position <= 0) return 0;
-                for (;0 < --position && (!0 === newBlock && !0 !== getTest(position).match.newBlockMarker || !0 !== newBlock && !isMask(position) && (tests = getTests(position), 
+                for (;0 < --position && (!0 === newBlock && !0 !== getTest(position).match.newBlockMarker || !0 !== newBlock && !isMask(position) && (tests = getTests(position),
                 tests.length < 2 || 2 === tests.length && "" === tests[1].match.def)); ) ;
                 return position;
             }
@@ -1136,13 +1215,13 @@
                     if (result) {
                         if (result.refreshFromBuffer) {
                             var refresh = result.refreshFromBuffer;
-                            refreshFromBuffer(!0 === refresh ? refresh : refresh.start, refresh.end, result.buffer || buffer), 
+                            refreshFromBuffer(!0 === refresh ? refresh : refresh.start, refresh.end, result.buffer || buffer),
                             buffer = getBuffer(!0);
                         }
                         void 0 !== caretPos && (caretPos = void 0 !== result.caret ? result.caret : caretPos);
                     }
                 }
-                if (void 0 !== input && (input.inputmask._valueSet(buffer.join("")), void 0 === caretPos || void 0 !== event && "blur" === event.type ? renderColorMask(input, caretPos, 0 === buffer.length) : caret(input, caretPos), 
+                if (void 0 !== input && (input.inputmask._valueSet(buffer.join("")), void 0 === caretPos || void 0 !== event && "blur" === event.type ? renderColorMask(input, caretPos, 0 === buffer.length) : caret(input, caretPos),
                 !0 === triggerEvents)) {
                     var $input = $(input), nptVal = input.inputmask._valueGet();
                     skipInputEvent = !0, $input.trigger("input"), setTimeout(function() {
@@ -1155,7 +1234,7 @@
                 if (!0 !== test.static) return opts.placeholder.charAt(pos % opts.placeholder.length);
                 if (-1 < pos && void 0 === maskset.validPositions[pos]) {
                     var tests = getTests(pos), staticAlternations = [], prevTest;
-                    if (tests.length > 1 + ("" === tests[tests.length - 1].match.def ? 1 : 0)) for (var i = 0; i < tests.length; i++) if (!0 !== tests[i].match.optionality && !0 !== tests[i].match.optionalQuantifier && (!0 === tests[i].match.static || void 0 === prevTest || !1 !== tests[i].match.fn.test(prevTest.match.def, maskset, pos, !0, opts)) && (staticAlternations.push(tests[i]), 
+                    if (tests.length > 1 + ("" === tests[tests.length - 1].match.def ? 1 : 0)) for (var i = 0; i < tests.length; i++) if (!0 !== tests[i].match.optionality && !0 !== tests[i].match.optionalQuantifier && (!0 === tests[i].match.static || void 0 === prevTest || !1 !== tests[i].match.fn.test(prevTest.match.def, maskset, pos, !0, opts)) && (staticAlternations.push(tests[i]),
                     !0 === tests[i].match.static && (prevTest = tests[i]), 1 < staticAlternations.length && /[0-9a-bA-Z]/.test(staticAlternations[0].match.def))) return opts.placeholder.charAt(pos % opts.placeholder.length);
                 }
                 return test.def;
@@ -1166,7 +1245,7 @@
                         var buffer = getBuffer().slice(), nptValue = npt.inputmask._valueGet();
                         if (nptValue !== value) {
                             var lvp = getLastValidPosition();
-                            -1 === lvp && nptValue === getBufferTemplate().join("") ? buffer = [] : -1 !== lvp && clearOptionalTail(buffer), 
+                            -1 === lvp && nptValue === getBufferTemplate().join("") ? buffer = [] : -1 !== lvp && clearOptionalTail(buffer),
                             writeBuffer(npt, buffer);
                         }
                     }
@@ -1187,7 +1266,7 @@
                     }
                     return !1;
                 }
-                if (tabbed && (isRTL ? selectedCaret.end = selectedCaret.begin : selectedCaret.begin = selectedCaret.end), 
+                if (tabbed && (isRTL ? selectedCaret.end = selectedCaret.begin : selectedCaret.begin = selectedCaret.end),
                 selectedCaret.begin === selectedCaret.end) switch (opts.positionCaretOnClick) {
                   case "none":
                     break;
@@ -1256,12 +1335,12 @@
                             e.preventDefault();
                         }
                     };
-                    input.inputmask.events[eventName] = input.inputmask.events[eventName] || [], input.inputmask.events[eventName].push(ev), 
+                    input.inputmask.events[eventName] = input.inputmask.events[eventName] || [], input.inputmask.events[eventName].push(ev),
                     -1 !== $.inArray(eventName, [ "submit", "reset" ]) ? null !== input.form && $(input.form).on(eventName, ev) : $(input).on(eventName, ev);
                 },
                 off: function off(input, event) {
                     var events;
-                    input.inputmask && input.inputmask.events && (event ? (events = [], events[event] = input.inputmask.events[event]) : events = input.inputmask.events, 
+                    input.inputmask && input.inputmask.events && (event ? (events = [], events[event] = input.inputmask.events[event]) : events = input.inputmask.events,
                     $.each(events, function(eventName, evArr) {
                         for (;0 < evArr.length; ) {
                             var ev = evArr.pop();
@@ -1274,16 +1353,16 @@
                 keydownEvent: function keydownEvent(e, fromInputFallback) {
                     var input = this, $input = $(input), k = e.keyCode, pos = caret(input), kdResult = opts.onKeyDown.call(this, e, getBuffer(), pos, opts);
                     if (void 0 !== kdResult) return kdResult;
-                    if (k === Inputmask.keyCode.BACKSPACE || k === Inputmask.keyCode.DELETE || iphone && k === Inputmask.keyCode.BACKSPACE_SAFARI || e.ctrlKey && k === Inputmask.keyCode.X && !isInputEventSupported("cut")) e.preventDefault(), 
+                    if (k === Inputmask.keyCode.BACKSPACE || k === Inputmask.keyCode.DELETE || iphone && k === Inputmask.keyCode.BACKSPACE_SAFARI || e.ctrlKey && k === Inputmask.keyCode.X && !isInputEventSupported("cut")) e.preventDefault(),
                     handleRemove(input, k, pos), writeBuffer(input, getBuffer(!0), !0 === fromInputFallback && !1 === opts.insertMode ? seekPrevious(maskset.p) : maskset.p, e, input.inputmask._valueGet() !== getBuffer().join("")); else if (k === Inputmask.keyCode.END || k === Inputmask.keyCode.PAGE_DOWN) {
                         e.preventDefault();
                         var caretPos = seekNext(getLastValidPosition());
                         caret(input, e.shiftKey ? pos.begin : caretPos, caretPos, !0);
-                    } else k === Inputmask.keyCode.HOME && !e.shiftKey || k === Inputmask.keyCode.PAGE_UP ? (e.preventDefault(), 
-                    caret(input, 0, e.shiftKey ? pos.begin : 0, !0)) : (opts.undoOnEscape && k === Inputmask.keyCode.ESCAPE || 90 === k && e.ctrlKey) && !0 !== e.altKey ? (checkVal(input, !0, !1, undoValue.split("")), 
-                    $input.trigger("click")) : k !== Inputmask.keyCode.INSERT || e.shiftKey || e.ctrlKey ? !0 === opts.tabThrough && k === Inputmask.keyCode.TAB ? (!0 === e.shiftKey ? (!0 === getTest(pos.begin).match.static && (pos.begin = seekNext(pos.begin)), 
-                    pos.end = seekPrevious(pos.begin, !0), pos.begin = seekPrevious(pos.end, !0)) : (pos.begin = seekNext(pos.begin, !0), 
-                    pos.end = seekNext(pos.begin, !0), pos.end < maskset.maskLength && pos.end--), pos.begin < maskset.maskLength && (e.preventDefault(), 
+                    } else k === Inputmask.keyCode.HOME && !e.shiftKey || k === Inputmask.keyCode.PAGE_UP ? (e.preventDefault(),
+                    caret(input, 0, e.shiftKey ? pos.begin : 0, !0)) : (opts.undoOnEscape && k === Inputmask.keyCode.ESCAPE || 90 === k && e.ctrlKey) && !0 !== e.altKey ? (checkVal(input, !0, !1, undoValue.split("")),
+                    $input.trigger("click")) : k !== Inputmask.keyCode.INSERT || e.shiftKey || e.ctrlKey ? !0 === opts.tabThrough && k === Inputmask.keyCode.TAB ? (!0 === e.shiftKey ? (!0 === getTest(pos.begin).match.static && (pos.begin = seekNext(pos.begin)),
+                    pos.end = seekPrevious(pos.begin, !0), pos.begin = seekPrevious(pos.end, !0)) : (pos.begin = seekNext(pos.begin, !0),
+                    pos.end = seekNext(pos.begin, !0), pos.end < maskset.maskLength && pos.end--), pos.begin < maskset.maskLength && (e.preventDefault(),
                     caret(input, pos.begin, pos.end))) : e.shiftKey || (!1 === opts.insertMode ? k === Inputmask.keyCode.RIGHT ? setTimeout(function() {
                         var caretPos = caret(input);
                         caret(input, caretPos.begin);
@@ -1298,7 +1377,7 @@
                 },
                 keypressEvent: function keypressEvent(e, checkval, writeOut, strict, ndx) {
                     var input = this, $input = $(input), k = e.which || e.charCode || e.keyCode;
-                    if (!(!0 === checkval || e.ctrlKey && e.altKey) && (e.ctrlKey || e.metaKey || ignorable)) return k === Inputmask.keyCode.ENTER && undoValue !== getBuffer().join("") && (undoValue = getBuffer().join(""), 
+                    if (!(!0 === checkval || e.ctrlKey && e.altKey) && (e.ctrlKey || e.metaKey || ignorable)) return k === Inputmask.keyCode.ENTER && undoValue !== getBuffer().join("") && (undoValue = getBuffer().join(""),
                     setTimeout(function() {
                         $input.trigger("change");
                     }, 0)), !0;
@@ -1310,15 +1389,15 @@
                         } : caret(input), forwardPosition, c = String.fromCharCode(k);
                         maskset.writeOutBuffer = !0;
                         var valResult = isValid(pos, c, strict);
-                        if (!1 !== valResult && (resetMaskSet(!0), forwardPosition = void 0 !== valResult.caret ? valResult.caret : seekNext(valResult.pos.begin ? valResult.pos.begin : valResult.pos), 
-                        maskset.p = forwardPosition), forwardPosition = opts.numericInput && void 0 === valResult.caret ? seekPrevious(forwardPosition) : forwardPosition, 
+                        if (!1 !== valResult && (resetMaskSet(!0), forwardPosition = void 0 !== valResult.caret ? valResult.caret : seekNext(valResult.pos.begin ? valResult.pos.begin : valResult.pos),
+                        maskset.p = forwardPosition), forwardPosition = opts.numericInput && void 0 === valResult.caret ? seekPrevious(forwardPosition) : forwardPosition,
                         !1 !== writeOut && (setTimeout(function() {
                             opts.onKeyValidation.call(input, k, valResult, opts);
                         }, 0), maskset.writeOutBuffer && !1 !== valResult)) {
                             var buffer = getBuffer();
                             writeBuffer(input, buffer, forwardPosition, e, !0 !== checkval);
                         }
-                        if (e.preventDefault(), checkval) return !1 !== valResult && (valResult.forwardPosition = forwardPosition), 
+                        if (e.preventDefault(), checkval) return !1 !== valResult && (valResult.forwardPosition = forwardPosition),
                         valResult;
                     }
                 },
@@ -1326,8 +1405,8 @@
                     var input = this, ev = e.originalEvent || e, inputValue = this.inputmask._valueGet(!0), caretPos = caret(this), tempValue;
                     isRTL && (tempValue = caretPos.end, caretPos.end = caretPos.begin, caretPos.begin = tempValue);
                     var valueBeforeCaret = inputValue.substr(0, caretPos.begin), valueAfterCaret = inputValue.substr(caretPos.end, inputValue.length);
-                    if (valueBeforeCaret === (isRTL ? getBufferTemplate().reverse() : getBufferTemplate()).slice(0, caretPos.begin).join("") && (valueBeforeCaret = ""), 
-                    valueAfterCaret === (isRTL ? getBufferTemplate().reverse() : getBufferTemplate()).slice(caretPos.end).join("") && (valueAfterCaret = ""), 
+                    if (valueBeforeCaret === (isRTL ? getBufferTemplate().reverse() : getBufferTemplate()).slice(0, caretPos.begin).join("") && (valueBeforeCaret = ""),
+                    valueAfterCaret === (isRTL ? getBufferTemplate().reverse() : getBufferTemplate()).slice(caretPos.end).join("") && (valueAfterCaret = ""),
                     window.clipboardData && window.clipboardData.getData) inputValue = valueBeforeCaret + window.clipboardData.getData("Text") + valueAfterCaret; else {
                         if (!ev.clipboardData || !ev.clipboardData.getData) return !0;
                         inputValue = valueBeforeCaret + ev.clipboardData.getData("text/plain") + valueAfterCaret;
@@ -1337,13 +1416,13 @@
                         if (pasteValue = opts.onBeforePaste.call(inputmask, inputValue, opts), !1 === pasteValue) return e.preventDefault();
                         pasteValue = pasteValue || inputValue;
                     }
-                    return checkVal(this, !1, !1, pasteValue.toString().split("")), writeBuffer(this, getBuffer(), seekNext(getLastValidPosition()), e, undoValue !== getBuffer().join("")), 
+                    return checkVal(this, !1, !1, pasteValue.toString().split("")), writeBuffer(this, getBuffer(), seekNext(getLastValidPosition()), e, undoValue !== getBuffer().join("")),
                     e.preventDefault();
                 },
                 inputFallBackEvent: function inputFallBackEvent(e) {
                     function radixPointHandler(input, inputValue, caretPos) {
-                        return "." === inputValue.charAt(caretPos.begin - 1) && "" !== opts.radixPoint && (inputValue = inputValue.split(""), 
-                        inputValue[caretPos.begin - 1] = opts.radixPoint.charAt(0), inputValue = inputValue.join("")), 
+                        return "." === inputValue.charAt(caretPos.begin - 1) && "" !== opts.radixPoint && (inputValue = inputValue.split(""),
+                        inputValue[caretPos.begin - 1] = opts.radixPoint.charAt(0), inputValue = inputValue.join("")),
                         inputValue;
                     }
                     function ieMobileHandler(input, inputValue, caretPos) {
@@ -1359,7 +1438,7 @@
                     var input = this, inputValue = input.inputmask._valueGet();
                     if (getBuffer().join("") !== inputValue) {
                         var caretPos = caret(input);
-                        if (inputValue = radixPointHandler(input, inputValue, caretPos), inputValue = ieMobileHandler(input, inputValue, caretPos), 
+                        if (inputValue = radixPointHandler(input, inputValue, caretPos), inputValue = ieMobileHandler(input, inputValue, caretPos),
                         getBuffer().join("") !== inputValue) {
                             var buffer = getBuffer().join(""), offset = !opts.numericInput && inputValue.length > buffer.length ? -1 : 0, frontPart = inputValue.substr(0, caretPos.begin), backPart = inputValue.substr(caretPos.begin), frontBufferPart = buffer.substr(0, caretPos.begin + offset), backBufferPart = buffer.substr(caretPos.begin + offset), selection = caretPos, entries = "", isEntry = !1;
                             if (frontPart !== frontBufferPart) {
@@ -1367,20 +1446,20 @@
                                 for (i = 0; frontPart.charAt(i) === frontBufferPart.charAt(i) && i < fpl; i++) ;
                                 isEntry && (selection.begin = i - offset, entries += frontPart.slice(i, selection.end));
                             }
-                            if (backPart !== backBufferPart && (backPart.length > backBufferPart.length ? entries += backPart.slice(0, 1) : backPart.length < backBufferPart.length && (selection.end += backBufferPart.length - backPart.length, 
-                            isEntry || "" === opts.radixPoint || "" !== backPart || frontPart.charAt(selection.begin + offset - 1) !== opts.radixPoint || (selection.begin--, 
+                            if (backPart !== backBufferPart && (backPart.length > backBufferPart.length ? entries += backPart.slice(0, 1) : backPart.length < backBufferPart.length && (selection.end += backBufferPart.length - backPart.length,
+                            isEntry || "" === opts.radixPoint || "" !== backPart || frontPart.charAt(selection.begin + offset - 1) !== opts.radixPoint || (selection.begin--,
                             entries = opts.radixPoint))), writeBuffer(input, getBuffer(), {
                                 begin: selection.begin + offset,
                                 end: selection.end + offset
-                            }), 0 < entries.length) document.activeElement !== input && (input.focus(), caret(input, selection)), 
+                            }), 0 < entries.length) document.activeElement !== input && (input.focus(), caret(input, selection)),
                             $.each(entries.split(""), function(ndx, entry) {
                                 var keypress = new $.Event("keypress");
                                 keypress.which = entry.charCodeAt(0), ignorable = !1, EventHandlers.keypressEvent.call(input, keypress);
                             }); else {
-                                selection.begin === selection.end - 1 && (selection.begin = seekPrevious(selection.begin + 1), 
+                                selection.begin === selection.end - 1 && (selection.begin = seekPrevious(selection.begin + 1),
                                 selection.begin === selection.end - 1 ? caret(input, selection.begin) : caret(input, selection.begin, selection.end));
                                 var keydown = new $.Event("keydown");
-                                keydown.keyCode = opts.numericInput ? Inputmask.keyCode.BACKSPACE : Inputmask.keyCode.DELETE, 
+                                keydown.keyCode = opts.numericInput ? Inputmask.keyCode.BACKSPACE : Inputmask.keyCode.DELETE,
                                 EventHandlers.keydownEvent.call(input, keydown, !0);
                             }
                             e.preventDefault();
@@ -1393,16 +1472,16 @@
                         switch (e.inputType) {
                           case "insertText":
                             return $.each(e.data.split(""), function(ndx, entry) {
-                                keypress = new $.Event("keypress"), keypress.which = entry.charCodeAt(0), ignorable = !1, 
+                                keypress = new $.Event("keypress"), keypress.which = entry.charCodeAt(0), ignorable = !1,
                                 EventHandlers.keypressEvent.call(input, keypress);
                             }), e.preventDefault();
 
                           case "deleteContentBackward":
-                            return keydown = new $.Event("keydown"), keydown.keyCode = Inputmask.keyCode.BACKSPACE, 
+                            return keydown = new $.Event("keydown"), keydown.keyCode = Inputmask.keyCode.BACKSPACE,
                             EventHandlers.keydownEvent.call(input, keydown), e.preventDefault();
 
                           case "deleteContentForward":
-                            return keydown = new $.Event("keydown"), keydown.keyCode = Inputmask.keyCode.DELETE, 
+                            return keydown = new $.Event("keydown"), keydown.keyCode = Inputmask.keyCode.DELETE,
                             EventHandlers.keydownEvent.call(input, keydown), e.preventDefault();
                         }
                     }
@@ -1413,8 +1492,8 @@
                 },
                 focusEvent: function focusEvent(e) {
                     var input = this, nptValue = this.inputmask._valueGet();
-                    opts.showMaskOnFocus && nptValue !== getBuffer().join("") && writeBuffer(this, getBuffer(), seekNext(getLastValidPosition())), 
-                    !0 !== opts.positionCaretOnTab || !1 !== mouseEnter || isComplete(getBuffer()) && -1 !== getLastValidPosition() || EventHandlers.clickEvent.apply(this, [ e, !0 ]), 
+                    opts.showMaskOnFocus && nptValue !== getBuffer().join("") && writeBuffer(this, getBuffer(), seekNext(getLastValidPosition())),
+                    !0 !== opts.positionCaretOnTab || !1 !== mouseEnter || isComplete(getBuffer()) && -1 !== getLastValidPosition() || EventHandlers.clickEvent.apply(this, [ e, !0 ]),
                     undoValue = getBuffer().join("");
                 },
                 mouseleaveEvent: function mouseleaveEvent() {
@@ -1430,8 +1509,8 @@
                 },
                 cutEvent: function cutEvent(e) {
                     var input = this, pos = caret(this), ev = e.originalEvent || e, clipboardData = window.clipboardData || ev.clipboardData, clipData = isRTL ? getBuffer().slice(pos.end, pos.begin) : getBuffer().slice(pos.begin, pos.end);
-                    clipboardData.setData("text", isRTL ? clipData.reverse().join("") : clipData.join("")), 
-                    document.execCommand && document.execCommand("copy"), handleRemove(this, Inputmask.keyCode.DELETE, pos), 
+                    clipboardData.setData("text", isRTL ? clipData.reverse().join("") : clipData.join("")),
+                    document.execCommand && document.execCommand("copy"), handleRemove(this, Inputmask.keyCode.DELETE, pos),
                     writeBuffer(this, getBuffer(), maskset.p, e, undoValue !== getBuffer().join(""));
                 },
                 blurEvent: function blurEvent(e) {
@@ -1439,23 +1518,23 @@
                     if (this.inputmask) {
                         HandleNativePlaceholder(this, originalPlaceholder);
                         var nptValue = this.inputmask._valueGet(), buffer = getBuffer().slice();
-                        "" === nptValue && void 0 === colorMask || (opts.clearMaskOnLostFocus && (-1 === getLastValidPosition() && nptValue === getBufferTemplate().join("") ? buffer = [] : clearOptionalTail(buffer)), 
+                        "" === nptValue && void 0 === colorMask || (opts.clearMaskOnLostFocus && (-1 === getLastValidPosition() && nptValue === getBufferTemplate().join("") ? buffer = [] : clearOptionalTail(buffer)),
                         !1 === isComplete(buffer) && (setTimeout(function() {
                             $input.trigger("incomplete");
-                        }, 0), opts.clearIncomplete && (resetMaskSet(), buffer = opts.clearMaskOnLostFocus ? [] : getBufferTemplate().slice())), 
-                        writeBuffer(this, buffer, void 0, e)), undoValue !== getBuffer().join("") && (undoValue = getBuffer().join(""), 
+                        }, 0), opts.clearIncomplete && (resetMaskSet(), buffer = opts.clearMaskOnLostFocus ? [] : getBufferTemplate().slice())),
+                        writeBuffer(this, buffer, void 0, e)), undoValue !== getBuffer().join("") && (undoValue = getBuffer().join(""),
                         $input.trigger("change"));
                     }
                 },
                 mouseenterEvent: function mouseenterEvent() {
                     var input = this;
-                    mouseEnter = !0, document.activeElement !== this && (null == originalPlaceholder && this.placeholder !== originalPlaceholder && (originalPlaceholder = this.placeholder), 
+                    mouseEnter = !0, document.activeElement !== this && (null == originalPlaceholder && this.placeholder !== originalPlaceholder && (originalPlaceholder = this.placeholder),
                     opts.showMaskOnHover && HandleNativePlaceholder(this, (isRTL ? getBuffer().slice().reverse() : getBuffer()).join("")));
                 },
                 submitEvent: function submitEvent() {
-                    undoValue !== getBuffer().join("") && $el.trigger("change"), opts.clearMaskOnLostFocus && -1 === getLastValidPosition() && el.inputmask._valueGet && el.inputmask._valueGet() === getBufferTemplate().join("") && el.inputmask._valueSet(""), 
-                    opts.clearIncomplete && !1 === isComplete(getBuffer()) && el.inputmask._valueSet(""), 
-                    opts.removeMaskOnSubmit && (el.inputmask._valueSet(el.inputmask.unmaskedvalue(), !0), 
+                    undoValue !== getBuffer().join("") && $el.trigger("change"), opts.clearMaskOnLostFocus && -1 === getLastValidPosition() && el.inputmask._valueGet && el.inputmask._valueGet() === getBufferTemplate().join("") && el.inputmask._valueSet(""),
+                    opts.clearIncomplete && !1 === isComplete(getBuffer()) && el.inputmask._valueSet(""),
+                    opts.removeMaskOnSubmit && (el.inputmask._valueSet(el.inputmask.unmaskedvalue(), !0),
                     setTimeout(function() {
                         writeBuffer(el, getBuffer());
                     }, 0));
@@ -1476,7 +1555,7 @@
                         begin: seekNext(charCodeNdx)
                     }), match;
                 }
-                resetMaskSet(), initialNdx = opts.radixPoint ? determineNewCaretPosition(0) : 0, 
+                resetMaskSet(), initialNdx = opts.radixPoint ? determineNewCaretPosition(0) : 0,
                 maskset.p = initialNdx, inputmask.caretPos = {
                     begin: initialNdx
                 };
@@ -1486,9 +1565,9 @@
                         var keypress = new $.Event("_checkval");
                         keypress.which = charCode.charCodeAt(0), charCodes += charCode;
                         var lvp = getLastValidPosition(void 0, !0);
-                        isTemplateMatch(initialNdx, charCodes) ? result = EventHandlers.keypressEvent.call(input, keypress, !0, !1, strict, lvp + 1) : (result = EventHandlers.keypressEvent.call(input, keypress, !0, !1, strict, inputmask.caretPos.begin), 
-                        result && (initialNdx = inputmask.caretPos.begin + 1, charCodes = "")), result ? (void 0 !== result.pos && maskset.validPositions[result.pos] && !0 === maskset.validPositions[result.pos].match.static && (staticMatches.push(result.pos), 
-                        isRTL || (result.forwardPosition = result.pos + 1)), writeBuffer(void 0, getBuffer(), result.forwardPosition, keypress, !1), 
+                        isTemplateMatch(initialNdx, charCodes) ? result = EventHandlers.keypressEvent.call(input, keypress, !0, !1, strict, lvp + 1) : (result = EventHandlers.keypressEvent.call(input, keypress, !0, !1, strict, inputmask.caretPos.begin),
+                        result && (initialNdx = inputmask.caretPos.begin + 1, charCodes = "")), result ? (void 0 !== result.pos && maskset.validPositions[result.pos] && !0 === maskset.validPositions[result.pos].match.static && (staticMatches.push(result.pos),
+                        isRTL || (result.forwardPosition = result.pos + 1)), writeBuffer(void 0, getBuffer(), result.forwardPosition, keypress, !1),
                         inputmask.caretPos = {
                             begin: result.forwardPosition,
                             end: result.forwardPosition
@@ -1498,10 +1577,10 @@
                     for (;void 0 !== (sndx = staticMatches.pop()); ) if (sndx !== staticMatches.length) {
                         var keypress = new $.Event("_checkval"), nextSndx = sndx + 1;
                         for (validPos = maskset.validPositions[sndx], validPos.generatedInput = !0, keypress.which = validPos.input.charCodeAt(0); (nextValid = maskset.validPositions[nextSndx]) && nextValid.input === validPos.input; ) nextSndx++;
-                        result = EventHandlers.keypressEvent.call(input, keypress, !0, !1, strict, nextSndx), 
+                        result = EventHandlers.keypressEvent.call(input, keypress, !0, !1, strict, nextSndx),
                         result && void 0 !== result.pos && result.pos !== sndx && maskset.validPositions[result.pos] && !0 === maskset.validPositions[result.pos].match.static && staticMatches.push(result.pos);
                     }
-                } else for (;sndx = staticMatches.pop(); ) validPos = maskset.validPositions[sndx], 
+                } else for (;sndx = staticMatches.pop(); ) validPos = maskset.validPositions[sndx],
                 validPos && (validPos.generatedInput = !0);
                 writeOut && writeBuffer(input, getBuffer(), result ? result.forwardPosition : void 0, initiatingEvent || new $.Event("checkval"), initiatingEvent && "input" === initiatingEvent.type);
             }
@@ -1520,25 +1599,25 @@
                 return unmaskedValue;
             }
             function translatePosition(pos) {
-                return !isRTL || "number" != typeof pos || opts.greedy && "" === opts.placeholder || !el || (pos = el.inputmask._valueGet().length - pos), 
+                return !isRTL || "number" != typeof pos || opts.greedy && "" === opts.placeholder || !el || (pos = el.inputmask._valueGet().length - pos),
                 pos;
             }
             function caret(input, begin, end, notranslate) {
                 var range;
-                if (void 0 === begin) return "selectionStart" in input && "selectionEnd" in input ? (begin = input.selectionStart, 
-                end = input.selectionEnd) : window.getSelection ? (range = window.getSelection().getRangeAt(0), 
-                range.commonAncestorContainer.parentNode !== input && range.commonAncestorContainer !== input || (begin = range.startOffset, 
-                end = range.endOffset)) : document.selection && document.selection.createRange && (range = document.selection.createRange(), 
-                begin = 0 - range.duplicate().moveStart("character", -input.inputmask._valueGet().length), 
-                end = begin + range.text.length), !1 === opts.insertMode && begin === end - 1 && end--, 
+                if (void 0 === begin) return "selectionStart" in input && "selectionEnd" in input ? (begin = input.selectionStart,
+                end = input.selectionEnd) : window.getSelection ? (range = window.getSelection().getRangeAt(0),
+                range.commonAncestorContainer.parentNode !== input && range.commonAncestorContainer !== input || (begin = range.startOffset,
+                end = range.endOffset)) : document.selection && document.selection.createRange && (range = document.selection.createRange(),
+                begin = 0 - range.duplicate().moveStart("character", -input.inputmask._valueGet().length),
+                end = begin + range.text.length), !1 === opts.insertMode && begin === end - 1 && end--,
                 {
                     begin: notranslate ? begin : translatePosition(begin),
                     end: notranslate ? end : translatePosition(end)
                 };
-                if ($.isArray(begin) && (end = isRTL ? begin[0] : begin[1], begin = isRTL ? begin[1] : begin[0]), 
-                void 0 !== begin.begin && (end = isRTL ? begin.begin : begin.end, begin = isRTL ? begin.end : begin.begin), 
+                if ($.isArray(begin) && (end = isRTL ? begin[0] : begin[1], begin = isRTL ? begin[1] : begin[0]),
+                void 0 !== begin.begin && (end = isRTL ? begin.begin : begin.end, begin = isRTL ? begin.end : begin.begin),
                 "number" == typeof begin) {
-                    begin = notranslate ? begin : translatePosition(begin), end = notranslate ? end : translatePosition(end), 
+                    begin = notranslate ? begin : translatePosition(begin), end = notranslate ? end : translatePosition(end),
                     end = "number" == typeof end ? end : begin;
                     var scrollCalc = parseInt(((input.ownerDocument.defaultView || window).getComputedStyle ? (input.ownerDocument.defaultView || window).getComputedStyle(input, null) : input.currentStyle).fontSize) * end;
                     if (input.scrollLeft = scrollCalc > input.scrollWidth ? scrollCalc : 0, input.inputmask.caretPos = {
@@ -1550,12 +1629,12 @@
                                 var textNode = document.createTextNode("");
                                 input.appendChild(textNode);
                             }
-                            range.setStart(input.firstChild, begin < input.inputmask._valueGet().length ? begin : input.inputmask._valueGet().length), 
-                            range.setEnd(input.firstChild, end < input.inputmask._valueGet().length ? end : input.inputmask._valueGet().length), 
+                            range.setStart(input.firstChild, begin < input.inputmask._valueGet().length ? begin : input.inputmask._valueGet().length),
+                            range.setEnd(input.firstChild, end < input.inputmask._valueGet().length ? end : input.inputmask._valueGet().length),
                             range.collapse(!0);
                             var sel = window.getSelection();
                             sel.removeAllRanges(), sel.addRange(range);
-                        } else input.createTextRange && (range = input.createTextRange(), range.collapse(!0), 
+                        } else input.createTextRange && (range = input.createTextRange(), range.collapse(!0),
                         range.moveEnd("character", end), range.moveStart("character", begin), range.select());
                         renderColorMask(input, {
                             begin: begin,
@@ -1566,7 +1645,7 @@
             }
             function determineLastRequiredPosition(returnDefinition) {
                 var buffer = getMaskTemplate(!0, getLastValidPosition(), !0, !0), bl = buffer.length, pos, lvp = getLastValidPosition(), positions = {}, lvTest = maskset.validPositions[lvp], ndxIntlzr = void 0 !== lvTest ? lvTest.locator.slice() : void 0, testPos;
-                for (pos = lvp + 1; pos < buffer.length; pos++) testPos = getTestTemplate(pos, ndxIntlzr, pos - 1), 
+                for (pos = lvp + 1; pos < buffer.length; pos++) testPos = getTestTemplate(pos, ndxIntlzr, pos - 1),
                 ndxIntlzr = testPos.locator.slice(), positions[pos] = $.extend(!0, {}, testPos);
                 var lvTestAlt = lvTest && void 0 !== lvTest.alternation ? lvTest.locator[lvTest.alternation] : void 0;
                 for (pos = bl - 1; lvp < pos && (testPos = positions[pos], (testPos.match.optionality || testPos.match.optionalQuantifier && testPos.match.newBlockMarker || lvTestAlt && (lvTestAlt !== positions[pos].locator[lvTest.alternation] && 1 != testPos.match.static || !0 === testPos.match.static && testPos.locator[lvTest.alternation] && checkAlternationMatch(testPos.locator[lvTest.alternation].toString().split(","), lvTestAlt.toString().split(",")) && "" !== getTests(pos)[0].def)) && buffer[pos] === getPlaceholder(pos, testPos.match)); pos--) bl--;
@@ -1598,14 +1677,14 @@
                 }
             }
             function handleRemove(input, k, pos, strict, fromIsValid) {
-                if ((opts.numericInput || isRTL) && (k === Inputmask.keyCode.BACKSPACE ? k = Inputmask.keyCode.DELETE : k === Inputmask.keyCode.DELETE && (k = Inputmask.keyCode.BACKSPACE), 
+                if ((opts.numericInput || isRTL) && (k === Inputmask.keyCode.BACKSPACE ? k = Inputmask.keyCode.DELETE : k === Inputmask.keyCode.DELETE && (k = Inputmask.keyCode.BACKSPACE),
                 isRTL)) {
                     var pend = pos.end;
                     pos.end = pos.begin, pos.begin = pend;
                 }
-                if (k === Inputmask.keyCode.BACKSPACE || k === Inputmask.keyCode.DELETE && !1 === opts.insertMode ? pos.end - pos.begin < 1 && (pos.begin = seekPrevious(pos.begin), 
-                void 0 !== maskset.validPositions[pos.begin] && maskset.validPositions[pos.begin].input === opts.groupSeparator && pos.begin--) : k === Inputmask.keyCode.DELETE && pos.begin === pos.end && (pos.end = isMask(pos.end, !0) && maskset.validPositions[pos.end] && maskset.validPositions[pos.end].input !== opts.radixPoint ? pos.end + 1 : seekNext(pos.end) + 1, 
-                void 0 !== maskset.validPositions[pos.begin] && maskset.validPositions[pos.begin].input === opts.groupSeparator && pos.end++), 
+                if (k === Inputmask.keyCode.BACKSPACE || k === Inputmask.keyCode.DELETE && !1 === opts.insertMode ? pos.end - pos.begin < 1 && (pos.begin = seekPrevious(pos.begin),
+                void 0 !== maskset.validPositions[pos.begin] && maskset.validPositions[pos.begin].input === opts.groupSeparator && pos.begin--) : k === Inputmask.keyCode.DELETE && pos.begin === pos.end && (pos.end = isMask(pos.end, !0) && maskset.validPositions[pos.end] && maskset.validPositions[pos.end].input !== opts.radixPoint ? pos.end + 1 : seekNext(pos.end) + 1,
+                void 0 !== maskset.validPositions[pos.begin] && maskset.validPositions[pos.begin].input === opts.groupSeparator && pos.end++),
                 revalidateMask(pos), !0 !== strict && !1 !== opts.keepStatic || null !== opts.regex && -1 !== getTest(pos.begin).match.def.indexOf("|")) {
                     var result = alternate(!0);
                     if (result) {
@@ -1614,8 +1693,8 @@
                     }
                 }
                 var lvp = getLastValidPosition(pos.end, !0);
-                lvp < pos.begin ? maskset.p = !1 === opts.insertMode ? seekPrevious(lvp + 1) : seekNext(lvp) : !0 !== strict && (maskset.p = pos.begin, 
-                !1 === opts.insertMode && k === Inputmask.keyCode.DELETE && (maskset.p = pos.end + 1, 
+                lvp < pos.begin ? maskset.p = !1 === opts.insertMode ? seekPrevious(lvp + 1) : seekNext(lvp) : !0 !== strict && (maskset.p = pos.begin,
+                !1 === opts.insertMode && k === Inputmask.keyCode.DELETE && (maskset.p = pos.end + 1,
                 void 0 === maskset.validPositions[maskset.p] && getLastValidPosition(maskset.maskLength, !0) < maskset.p && (maskset.p = seekPrevious(lvp + 1))));
             }
             function initializeColorMask(input) {
@@ -1623,8 +1702,8 @@
                 function findCaretPos(clientx) {
                     var e = document.createElement("span"), caretPos = 0;
                     for (var style in computedStyle) isNaN(style) && -1 !== style.indexOf("font") && (e.style[style] = computedStyle[style]);
-                    e.style.textTransform = computedStyle.textTransform, e.style.letterSpacing = computedStyle.letterSpacing, 
-                    e.style.position = "absolute", e.style.height = "auto", e.style.width = "auto", 
+                    e.style.textTransform = computedStyle.textTransform, e.style.letterSpacing = computedStyle.letterSpacing,
+                    e.style.position = "absolute", e.style.height = "auto", e.style.width = "auto",
                     e.style.visibility = "hidden", e.style.whiteSpace = "nowrap", document.body.appendChild(e);
                     for (var inputText = input.inputmask.__valueGet.call(input); e.offsetWidth < clientx; ) {
                         var ichar = inputText.charAt(caretPos);
@@ -1642,10 +1721,10 @@
                     return document.body.removeChild(e), caretPos;
                 }
                 var template = document.createElement("div");
-                template.style.width = computedStyle.width, template.style.textAlign = computedStyle.textAlign, 
-                colorMask = document.createElement("div"), input.inputmask.colorMask = colorMask, 
-                colorMask.className = "im-colormask", input.parentNode.insertBefore(colorMask, input), 
-                input.parentNode.removeChild(input), colorMask.appendChild(input), colorMask.appendChild(template), 
+                template.style.width = computedStyle.width, template.style.textAlign = computedStyle.textAlign,
+                colorMask = document.createElement("div"), input.inputmask.colorMask = colorMask,
+                colorMask.className = "im-colormask", input.parentNode.insertBefore(colorMask, input),
+                input.parentNode.removeChild(input), colorMask.appendChild(input), colorMask.appendChild(template),
                 input.style.left = template.offsetLeft + "px", $(colorMask).on("mouseleave", function(e) {
                     return EventHandlers.mouseleaveEvent.call(input, [ e ]);
                 }), $(colorMask).on("mouseenter", function(e) {
@@ -1667,7 +1746,7 @@
                     maskTemplate.push(entry);
                 }
                 function setCaret(begin, end, length) {
-                    document.activeElement === input && (maskTemplate.splice(begin, 0, begin === end || length > maskset.maskLength ? templates_caret.start : templates_caret.start_select), 
+                    document.activeElement === input && (maskTemplate.splice(begin, 0, begin === end || length > maskset.maskLength ? templates_caret.start : templates_caret.start_select),
                     maskTemplate.splice(end + (isRTL ? 0 : 1), 0, templates_caret.end));
                 }
                 if (void 0 !== colorMask) {
@@ -1675,11 +1754,11 @@
                     if (void 0 === caretPos ? caretPos = caret(input) : void 0 === caretPos.begin && (caretPos = {
                         begin: caretPos,
                         end: caretPos
-                    }), isRTL && (caretPos.begin = translatePosition(caretPos.begin), caretPos.end = translatePosition(caretPos.end)), 
+                    }), isRTL && (caretPos.begin = translatePosition(caretPos.begin), caretPos.end = translatePosition(caretPos.end)),
                     !0 !== clear) {
                         var lvp = getLastValidPosition();
                         do {
-                            if (maskset.validPositions[pos]) testPos = maskset.validPositions[pos], test = testPos.match, 
+                            if (maskset.validPositions[pos]) testPos = maskset.validPositions[pos], test = testPos.match,
                             ndxIntlzr = testPos.locator.slice(), setEntry(buffer[pos]); else {
                                 testPos = getTestTemplate(pos, ndxIntlzr, pos - 1), test = testPos.match, ndxIntlzr = testPos.locator.slice();
                                 var jitMasking = !1 !== opts.jitMasking ? opts.jitMasking : test.jit;
@@ -1694,8 +1773,8 @@
                 }
             }
             function applyInputValue(input, value) {
-                input.inputmask.refreshValue = !1, $.isFunction(opts.onBeforeMask) && (value = opts.onBeforeMask.call(inputmask, value, opts) || value), 
-                value = value.toString().split(""), checkVal(input, !0, !1, value), undoValue = getBuffer().join(""), 
+                input.inputmask.refreshValue = !1, $.isFunction(opts.onBeforeMask) && (value = opts.onBeforeMask.call(inputmask, value, opts) || value),
+                value = value.toString().split(""), checkVal(input, !0, !1, value), undoValue = getBuffer().join(""),
                 (opts.clearMaskOnLostFocus || opts.clearIncomplete) && input.inputmask._valueGet() === getBufferTemplate().join("") && -1 === getLastValidPosition() && input.inputmask._valueSet("");
             }
             function mask(elem) {
@@ -1747,7 +1826,7 @@
                                         return object.constructor.prototype;
                                     });
                                     var valueProperty = Object.getPrototypeOf ? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(npt), "value") : void 0;
-                                    valueProperty && valueProperty.get && valueProperty.set ? (valueGet = valueProperty.get, 
+                                    valueProperty && valueProperty.get && valueProperty.set ? (valueGet = valueProperty.get,
                                     valueSet = valueProperty.set, Object.defineProperty(npt, "value", {
                                         get: getter,
                                         set: setter,
@@ -1761,8 +1840,8 @@
                                         set: setter,
                                         configurable: !0
                                     }));
-                                } else document.__lookupGetter__ && npt.__lookupGetter__("value") && (valueGet = npt.__lookupGetter__("value"), 
-                                valueSet = npt.__lookupSetter__("value"), npt.__defineGetter__("value", getter), 
+                                } else document.__lookupGetter__ && npt.__lookupGetter__("value") && (valueGet = npt.__lookupGetter__("value"),
+                                valueSet = npt.__lookupSetter__("value"), npt.__defineGetter__("value", getter),
                                 npt.__defineSetter__("value", setter));
                                 npt.inputmask.__valueGet = valueGet, npt.inputmask.__valueSet = valueSet;
                             }
@@ -1782,30 +1861,30 @@
                         var el = document.createElement("input");
                         el.setAttribute("type", elementType), isSupported = "text" === el.type, el = null;
                     } else isSupported = "partial";
-                    return !1 !== isSupported ? patchValueProperty(input) : input.inputmask = void 0, 
+                    return !1 !== isSupported ? patchValueProperty(input) : input.inputmask = void 0,
                     isSupported;
                 }
                 EventRuler.off(elem);
                 var isSupported = isElementTypeSupported(elem, opts);
-                if (!1 !== isSupported && (el = elem, $el = $(el), originalPlaceholder = el.placeholder, 
-                maxLength = void 0 !== el ? el.maxLength : void 0, -1 === maxLength && (maxLength = void 0), 
-                !0 === opts.colorMask && initializeColorMask(el), mobile && ("inputmode" in el && (el.inputmode = opts.inputmode, 
-                el.setAttribute("inputmode", opts.inputmode)), !0 === opts.disablePredictiveText && ("autocorrect" in el ? el.autocorrect = !1 : (!0 !== opts.colorMask && initializeColorMask(el), 
-                el.type = "password"))), !0 === isSupported && (opts.showMaskOnFocus = opts.showMaskOnFocus && -1 === [ "cc-number", "cc-exp" ].indexOf(el.autocomplete), 
-                EventRuler.on(el, "submit", EventHandlers.submitEvent), EventRuler.on(el, "reset", EventHandlers.resetEvent), 
-                EventRuler.on(el, "blur", EventHandlers.blurEvent), EventRuler.on(el, "focus", EventHandlers.focusEvent), 
-                !0 !== opts.colorMask && (EventRuler.on(el, "click", EventHandlers.clickEvent), 
-                EventRuler.on(el, "mouseleave", EventHandlers.mouseleaveEvent), EventRuler.on(el, "mouseenter", EventHandlers.mouseenterEvent)), 
-                EventRuler.on(el, "paste", EventHandlers.pasteEvent), EventRuler.on(el, "cut", EventHandlers.cutEvent), 
-                EventRuler.on(el, "complete", opts.oncomplete), EventRuler.on(el, "incomplete", opts.onincomplete), 
-                EventRuler.on(el, "cleared", opts.oncleared), mobile || !0 === opts.inputEventOnly ? el.removeAttribute("maxLength") : (EventRuler.on(el, "keydown", EventHandlers.keydownEvent), 
-                EventRuler.on(el, "keypress", EventHandlers.keypressEvent)), EventRuler.on(el, "input", EventHandlers.inputFallBackEvent), 
-                EventRuler.on(el, "beforeinput", EventHandlers.beforeInputEvent)), EventRuler.on(el, "setvalue", EventHandlers.setValueEvent), 
+                if (!1 !== isSupported && (el = elem, $el = $(el), originalPlaceholder = el.placeholder,
+                maxLength = void 0 !== el ? el.maxLength : void 0, -1 === maxLength && (maxLength = void 0),
+                !0 === opts.colorMask && initializeColorMask(el), mobile && ("inputmode" in el && (el.inputmode = opts.inputmode,
+                el.setAttribute("inputmode", opts.inputmode)), !0 === opts.disablePredictiveText && ("autocorrect" in el ? el.autocorrect = !1 : (!0 !== opts.colorMask && initializeColorMask(el),
+                el.type = "password"))), !0 === isSupported && (opts.showMaskOnFocus = opts.showMaskOnFocus && -1 === [ "cc-number", "cc-exp" ].indexOf(el.autocomplete),
+                EventRuler.on(el, "submit", EventHandlers.submitEvent), EventRuler.on(el, "reset", EventHandlers.resetEvent),
+                EventRuler.on(el, "blur", EventHandlers.blurEvent), EventRuler.on(el, "focus", EventHandlers.focusEvent),
+                !0 !== opts.colorMask && (EventRuler.on(el, "click", EventHandlers.clickEvent),
+                EventRuler.on(el, "mouseleave", EventHandlers.mouseleaveEvent), EventRuler.on(el, "mouseenter", EventHandlers.mouseenterEvent)),
+                EventRuler.on(el, "paste", EventHandlers.pasteEvent), EventRuler.on(el, "cut", EventHandlers.cutEvent),
+                EventRuler.on(el, "complete", opts.oncomplete), EventRuler.on(el, "incomplete", opts.onincomplete),
+                EventRuler.on(el, "cleared", opts.oncleared), mobile || !0 === opts.inputEventOnly ? el.removeAttribute("maxLength") : (EventRuler.on(el, "keydown", EventHandlers.keydownEvent),
+                EventRuler.on(el, "keypress", EventHandlers.keypressEvent)), EventRuler.on(el, "input", EventHandlers.inputFallBackEvent),
+                EventRuler.on(el, "beforeinput", EventHandlers.beforeInputEvent)), EventRuler.on(el, "setvalue", EventHandlers.setValueEvent),
                 undoValue = getBufferTemplate().join(""), "" !== el.inputmask._valueGet(!0) || !1 === opts.clearMaskOnLostFocus || document.activeElement === el)) {
                     applyInputValue(el, el.inputmask._valueGet(!0), opts);
                     var buffer = getBuffer().slice();
-                    !1 === isComplete(buffer) && opts.clearIncomplete && resetMaskSet(), opts.clearMaskOnLostFocus && document.activeElement !== el && (-1 === getLastValidPosition() ? buffer = [] : clearOptionalTail(buffer)), 
-                    (!1 === opts.clearMaskOnLostFocus || opts.showMaskOnFocus && document.activeElement === el || "" !== el.inputmask._valueGet(!0)) && writeBuffer(el, buffer), 
+                    !1 === isComplete(buffer) && opts.clearIncomplete && resetMaskSet(), opts.clearMaskOnLostFocus && document.activeElement !== el && (-1 === getLastValidPosition() ? buffer = [] : clearOptionalTail(buffer)),
+                    (!1 === opts.clearMaskOnLostFocus || opts.showMaskOnFocus && document.activeElement === el || "" !== el.inputmask._valueGet(!0)) && writeBuffer(el, buffer),
                     document.activeElement === el && caret(el, seekNext(getLastValidPosition()));
                 }
             }
@@ -1814,9 +1893,9 @@
                 return el = actionObj.el, isComplete(getBuffer());
 
               case "unmaskedvalue":
-                return void 0 !== el && void 0 === actionObj.value || (valueBuffer = actionObj.value, 
-                valueBuffer = ($.isFunction(opts.onBeforeMask) && opts.onBeforeMask.call(inputmask, valueBuffer, opts) || valueBuffer).split(""), 
-                checkVal.call(this, void 0, !1, !1, valueBuffer), $.isFunction(opts.onBeforeWrite) && opts.onBeforeWrite.call(inputmask, void 0, getBuffer(), 0, opts)), 
+                return void 0 !== el && void 0 === actionObj.value || (valueBuffer = actionObj.value,
+                valueBuffer = ($.isFunction(opts.onBeforeMask) && opts.onBeforeMask.call(inputmask, valueBuffer, opts) || valueBuffer).split(""),
+                checkVal.call(this, void 0, !1, !1, valueBuffer), $.isFunction(opts.onBeforeWrite) && opts.onBeforeWrite.call(inputmask, void 0, getBuffer(), 0, opts)),
                 unmaskedvalue(el);
 
               case "mask":
@@ -1824,7 +1903,7 @@
                 break;
 
               case "format":
-                return valueBuffer = ($.isFunction(opts.onBeforeMask) && opts.onBeforeMask.call(inputmask, actionObj.value, opts) || actionObj.value).split(""), 
+                return valueBuffer = ($.isFunction(opts.onBeforeMask) && opts.onBeforeMask.call(inputmask, actionObj.value, opts) || actionObj.value).split(""),
                 checkVal.call(this, void 0, !0, !1, valueBuffer), actionObj.metadata ? {
                     value: isRTL ? getBuffer().slice().reverse().join("") : getBuffer().join(""),
                     metadata: maskScope.call(this, {
@@ -1833,7 +1912,7 @@
                 } : isRTL ? getBuffer().slice().reverse().join("") : getBuffer().join("");
 
               case "isValid":
-                actionObj.value ? (valueBuffer = ($.isFunction(opts.onBeforeMask) && opts.onBeforeMask.call(inputmask, actionObj.value, opts) || actionObj.value).split(""), 
+                actionObj.value ? (valueBuffer = ($.isFunction(opts.onBeforeMask) && opts.onBeforeMask.call(inputmask, actionObj.value, opts) || actionObj.value).split(""),
                 checkVal.call(this, void 0, !0, !1, valueBuffer)) : actionObj.value = isRTL ? getBuffer().slice().reverse().join("") : getBuffer().join("");
                 for (var buffer = getBuffer(), rl = determineLastRequiredPosition(), lmib = buffer.length - 1; rl < lmib && !isMask(lmib); lmib--) ;
                 return buffer.splice(rl, lmib + 1 - rl), isComplete(buffer) && actionObj.value === (isRTL ? getBuffer().slice().reverse().join("") : getBuffer().join(""));
@@ -1845,15 +1924,15 @@
                 if (el && el.inputmask) {
                     $.data(el, "_inputmask_opts", null), $el = $(el);
                     var cv = opts.autoUnmask ? unmaskedvalue(el) : el.inputmask._valueGet(opts.autoUnmask), valueProperty;
-                    cv !== getBufferTemplate().join("") ? el.inputmask._valueSet(cv, opts.autoUnmask) : el.inputmask._valueSet(""), 
-                    EventRuler.off(el), el.inputmask.colorMask && (colorMask = el.inputmask.colorMask, 
-                    colorMask.removeChild(el), colorMask.parentNode.insertBefore(el, colorMask), colorMask.parentNode.removeChild(colorMask)), 
-                    Object.getOwnPropertyDescriptor && Object.getPrototypeOf ? (valueProperty = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value"), 
+                    cv !== getBufferTemplate().join("") ? el.inputmask._valueSet(cv, opts.autoUnmask) : el.inputmask._valueSet(""),
+                    EventRuler.off(el), el.inputmask.colorMask && (colorMask = el.inputmask.colorMask,
+                    colorMask.removeChild(el), colorMask.parentNode.insertBefore(el, colorMask), colorMask.parentNode.removeChild(colorMask)),
+                    Object.getOwnPropertyDescriptor && Object.getPrototypeOf ? (valueProperty = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value"),
                     valueProperty && el.inputmask.__valueGet && Object.defineProperty(el, "value", {
                         get: el.inputmask.__valueGet,
                         set: el.inputmask.__valueSet,
                         configurable: !0
-                    })) : document.__lookupGetter__ && el.__lookupGetter__("value") && el.inputmask.__valueGet && (el.__defineGetter__("value", el.inputmask.__valueGet), 
+                    })) : document.__lookupGetter__ && el.__lookupGetter__("value") && el.inputmask.__valueGet && (el.__defineGetter__("value", el.inputmask.__valueGet),
                     el.__defineSetter__("value", el.inputmask.__valueSet)), el.inputmask = void 0;
                 }
                 return el;
@@ -1954,7 +2033,7 @@
                 }
                 dateParts.year === dateParts.rawyear && opts.min.date.getTime() == opts.min.date.getTime() && (result = opts.min.date.getTime() <= dateParts.date.getTime());
             }
-            return result && opts.max && opts.max.date.getTime() == opts.max.date.getTime() && (result = opts.max.date.getTime() >= dateParts.date.getTime()), 
+            return result && opts.max && opts.max.date.getTime() == opts.max.date.getTime() && (result = opts.max.date.getTime() >= dateParts.date.getTime()),
             result;
         }
         function parse(format, dateObjValue, opts, raw) {
@@ -1989,13 +2068,13 @@
                 return correctedValue;
             }
             function setValue(dateObj, value, opts) {
-                dateObj[targetProp] = extendProperty(value), dateObj["raw" + targetProp] = value, 
+                dateObj[targetProp] = extendProperty(value), dateObj["raw" + targetProp] = value,
                 void 0 !== dateOperation && dateOperation.call(dateObj.date, "month" == targetProp ? parseInt(dateObj[targetProp]) - 1 : dateObj[targetProp]);
             }
             if ("string" == typeof mask) {
                 for (getTokenizer(opts).lastIndex = 0; match = getTokenizer(opts).exec(format); ) {
                     var value = mask.slice(0, match[0].length);
-                    formatCode.hasOwnProperty(match[0]) && (targetProp = formatCode[match[0]][2], dateOperation = formatCode[match[0]][1], 
+                    formatCode.hasOwnProperty(match[0]) && (targetProp = formatCode[match[0]][2], dateOperation = formatCode[match[0]][1],
                     setValue(dateObj, value, opts)), mask = mask.slice(value.length);
                 }
                 return dateObj;
@@ -2005,10 +2084,10 @@
         Inputmask.extendAliases({
             datetime: {
                 mask: function mask(opts) {
-                    return formatCode.S = opts.i18n.ordinalSuffix.join("|"), opts.inputFormat = formatAlias[opts.inputFormat] || opts.inputFormat, 
-                    opts.displayFormat = formatAlias[opts.displayFormat] || opts.displayFormat || opts.inputFormat, 
-                    opts.outputFormat = formatAlias[opts.outputFormat] || opts.outputFormat || opts.inputFormat, 
-                    opts.placeholder = "" !== opts.placeholder ? opts.placeholder : opts.inputFormat.replace(/[[\]]/, ""), 
+                    return formatCode.S = opts.i18n.ordinalSuffix.join("|"), opts.inputFormat = formatAlias[opts.inputFormat] || opts.inputFormat,
+                    opts.displayFormat = formatAlias[opts.displayFormat] || opts.displayFormat || opts.inputFormat,
+                    opts.outputFormat = formatAlias[opts.outputFormat] || opts.outputFormat || opts.inputFormat,
+                    opts.placeholder = "" !== opts.placeholder ? opts.placeholder : opts.inputFormat.replace(/[[\]]/, ""),
                     opts.regex = parse(opts.inputFormat, void 0, opts), null;
                 },
                 placeholder: "",
@@ -2026,12 +2105,12 @@
                 preValidation: function preValidation(buffer, pos, c, isSelection, opts, maskset, caretPos) {
                     var calcPos = 0, targetMatch, match;
                     if (isNaN(c) && buffer[pos] !== c) {
-                        for (getTokenizer(opts).lastIndex = 0; match = getTokenizer(opts).exec(opts.inputFormat); ) if (calcPos += match[0].length, 
+                        for (getTokenizer(opts).lastIndex = 0; match = getTokenizer(opts).exec(opts.inputFormat); ) if (calcPos += match[0].length,
                         pos <= calcPos) {
                             targetMatch = match, match = getTokenizer(opts).exec(opts.inputFormat);
                             break;
                         }
-                        if (match && match[0] === c && 1 < targetMatch[0].length) return buffer[pos] = buffer[pos - 1], 
+                        if (match && match[0] === c && 1 < targetMatch[0].length) return buffer[pos] = buffer[pos - 1],
                         buffer[pos - 1] = "0", {
                             fuzzy: !0,
                             buffer: buffer,
@@ -2045,17 +2124,17 @@
                     return !0;
                 },
                 postValidation: function postValidation(buffer, pos, currentResult, opts, maskset) {
-                    opts.min = analyseMask(opts.min, opts.inputFormat, opts), opts.max = analyseMask(opts.max, opts.inputFormat, opts), 
+                    opts.min = analyseMask(opts.min, opts.inputFormat, opts), opts.max = analyseMask(opts.max, opts.inputFormat, opts),
                     currentResult.fuzzy && (buffer = currentResult.buffer, pos = currentResult.pos);
                     var calcPos = 0, match;
-                    for (getTokenizer(opts).lastIndex = 0; (match = getTokenizer(opts).exec(opts.inputFormat)) && (calcPos += match[0].length, 
+                    for (getTokenizer(opts).lastIndex = 0; (match = getTokenizer(opts).exec(opts.inputFormat)) && (calcPos += match[0].length,
                     !(pos < calcPos)); ) ;
                     if (match && match[0] && void 0 !== formatCode[match[0]]) {
                         var validator = formatCode[match[0]][0], part = buffer.slice(match.index, match.index + match[0].length);
                         !1 === new RegExp(validator).test(part.join("")) && 2 === match[0].length && maskset.validPositions[match.index] && maskset.validPositions[match.index + 1] && (maskset.validPositions[match.index + 1].input = "0");
                     }
                     var result = currentResult, dateParts = analyseMask(buffer.join(""), opts.inputFormat, opts);
-                    return result && dateParts.date.getTime() == dateParts.date.getTime() && (result = isValidDate(dateParts, result), 
+                    return result && dateParts.date.getTime() == dateParts.date.getTime() && (result = isValidDate(dateParts, result),
                     result = result && isDateInRange(dateParts, opts)), pos && result && currentResult.pos !== pos ? {
                         buffer: parse(opts.inputFormat, dateParts, opts),
                         refreshFromBuffer: {
@@ -2113,35 +2192,35 @@
             }), ret;
         }
         function parseMinMaxOptions(opts) {
-            void 0 === opts.parseMinMaxOptions && (null !== opts.min && (opts.min = opts.min.toString().replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator), "g"), ""), 
-            "," === opts.radixPoint && (opts.min = opts.min.replace(opts.radixPoint, ".")), 
-            opts.min = isFinite(opts.min) ? parseFloat(opts.min) : NaN, isNaN(opts.min) && (opts.min = Number.MIN_VALUE)), 
-            null !== opts.max && (opts.max = opts.max.toString().replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator), "g"), ""), 
-            "," === opts.radixPoint && (opts.max = opts.max.replace(opts.radixPoint, ".")), 
-            opts.max = isFinite(opts.max) ? parseFloat(opts.max) : NaN, isNaN(opts.max) && (opts.max = Number.MAX_VALUE)), 
+            void 0 === opts.parseMinMaxOptions && (null !== opts.min && (opts.min = opts.min.toString().replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator), "g"), ""),
+            "," === opts.radixPoint && (opts.min = opts.min.replace(opts.radixPoint, ".")),
+            opts.min = isFinite(opts.min) ? parseFloat(opts.min) : NaN, isNaN(opts.min) && (opts.min = Number.MIN_VALUE)),
+            null !== opts.max && (opts.max = opts.max.toString().replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator), "g"), ""),
+            "," === opts.radixPoint && (opts.max = opts.max.replace(opts.radixPoint, ".")),
+            opts.max = isFinite(opts.max) ? parseFloat(opts.max) : NaN, isNaN(opts.max) && (opts.max = Number.MAX_VALUE)),
             opts.parseMinMaxOptions = "done");
         }
         function genMask(opts) {
-            opts.repeat = 0, opts.groupSeparator === opts.radixPoint && opts.digits && "0" !== opts.digits && ("." === opts.radixPoint ? opts.groupSeparator = "," : "," === opts.radixPoint ? opts.groupSeparator = "." : opts.groupSeparator = ""), 
-            " " === opts.groupSeparator && (opts.skipOptionalPartCharacter = void 0), 1 < opts.placeholder.length && (opts.placeholder = opts.placeholder.charAt(0)), 
+            opts.repeat = 0, opts.groupSeparator === opts.radixPoint && opts.digits && "0" !== opts.digits && ("." === opts.radixPoint ? opts.groupSeparator = "," : "," === opts.radixPoint ? opts.groupSeparator = "." : opts.groupSeparator = ""),
+            " " === opts.groupSeparator && (opts.skipOptionalPartCharacter = void 0), 1 < opts.placeholder.length && (opts.placeholder = opts.placeholder.charAt(0)),
             "radixFocus" === opts.positionCaretOnClick && "" === opts.placeholder && (opts.positionCaretOnClick = "lvp");
             var decimalDef = "0";
-            !0 === opts.numericInput && void 0 === opts.__financeInput ? (decimalDef = "1", 
-            opts.positionCaretOnClick = "radixFocus" === opts.positionCaretOnClick ? "lvp" : opts.positionCaretOnClick, 
-            isNaN(opts.digits) && (opts.digits = 2), opts._radixDance = !1) : (opts.__financeInput = !1, 
+            !0 === opts.numericInput && void 0 === opts.__financeInput ? (decimalDef = "1",
+            opts.positionCaretOnClick = "radixFocus" === opts.positionCaretOnClick ? "lvp" : opts.positionCaretOnClick,
+            isNaN(opts.digits) && (opts.digits = 2), opts._radixDance = !1) : (opts.__financeInput = !1,
             opts.numericInput = !0);
             var mask = "[+]", altMask;
-            if (mask += autoEscape(opts.prefix, opts), "" !== opts.groupSeparator ? mask += opts._mask(opts) : mask += "9{+}", 
+            if (mask += autoEscape(opts.prefix, opts), "" !== opts.groupSeparator ? mask += opts._mask(opts) : mask += "9{+}",
             void 0 !== opts.digits) {
                 var dq = opts.digits.toString().split(",");
-                isFinite(dq[0]) && dq[1] && isFinite(dq[1]) ? mask += opts.radixPoint + decimalDef + "{" + opts.digits + "}" : (isNaN(opts.digits) || 0 < parseInt(opts.digits)) && (opts.digitsOptional ? (altMask = mask + opts.radixPoint + decimalDef + "{0," + opts.digits + "}", 
+                isFinite(dq[0]) && dq[1] && isFinite(dq[1]) ? mask += opts.radixPoint + decimalDef + "{" + opts.digits + "}" : (isNaN(opts.digits) || 0 < parseInt(opts.digits)) && (opts.digitsOptional ? (altMask = mask + opts.radixPoint + decimalDef + "{0," + opts.digits + "}",
                 opts.keepStatic = !0) : mask += opts.radixPoint + decimalDef + "{" + opts.digits + "}");
             }
-            return mask += autoEscape(opts.suffix, opts), mask += "[-]", altMask && (mask = [ altMask + autoEscape(opts.suffix, opts) + "[-]", mask ]), 
+            return mask += autoEscape(opts.suffix, opts), mask += "[-]", altMask && (mask = [ altMask + autoEscape(opts.suffix, opts) + "[-]", mask ]),
             opts.greedy = !1, parseMinMaxOptions(opts), mask;
         }
         function hanndleRadixDance(pos, c, radixPos, opts) {
-            return opts._radixDance && opts.numericInput && c !== opts.negationSymbol.back && pos <= radixPos && (0 < radixPos || c == opts.radixPoint) && (pos -= 1), 
+            return opts._radixDance && opts.numericInput && c !== opts.negationSymbol.back && pos <= radixPos && (0 < radixPos || c == opts.radixPoint) && (pos -= 1),
             pos;
         }
         function decimalValidator(chrs, maskset, pos, strict, opts) {
@@ -2156,7 +2235,7 @@
         }
         function checkForLeadingZeroes(buffer, opts) {
             var numberMatches = new RegExp("(^" + ("" != opts.negationSymbol.front ? Inputmask.escapeRegex(opts.negationSymbol.front) + "?" : "") + Inputmask.escapeRegex(opts.prefix) + ")(.*)(" + Inputmask.escapeRegex(opts.suffix) + ("" != opts.negationSymbol.back ? Inputmask.escapeRegex(opts.negationSymbol.back) + "?" : "") + "$)").exec(buffer.slice().reverse().join("")), number = numberMatches ? numberMatches[2] : "", leadingzeroes = !1;
-            return number && (number = number.split(opts.radixPoint.charAt(0))[0], leadingzeroes = new RegExp("^[0" + opts.groupSeparator + "]*").exec(number)), 
+            return number && (number = number.split(opts.radixPoint.charAt(0))[0], leadingzeroes = new RegExp("^[0" + opts.groupSeparator + "]*").exec(number)),
             !(!leadingzeroes || !(1 < leadingzeroes[0].length || 0 < leadingzeroes[0].length && leadingzeroes[0].length < number.length)) && leadingzeroes;
         }
         Inputmask.extendAliases({
@@ -2247,20 +2326,20 @@
                 onUnMask: function onUnMask(maskedValue, unmaskedValue, opts) {
                     if ("" === unmaskedValue && !0 === opts.nullable) return unmaskedValue;
                     var processValue = maskedValue.replace(opts.prefix, "");
-                    return processValue = processValue.replace(opts.suffix, ""), processValue = processValue.replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator), "g"), ""), 
-                    "" !== opts.placeholder.charAt(0) && (processValue = processValue.replace(new RegExp(opts.placeholder.charAt(0), "g"), "0")), 
-                    opts.unmaskAsNumber ? ("" !== opts.radixPoint && -1 !== processValue.indexOf(opts.radixPoint) && (processValue = processValue.replace(Inputmask.escapeRegex.call(this, opts.radixPoint), ".")), 
-                    processValue = processValue.replace(new RegExp("^" + Inputmask.escapeRegex(opts.negationSymbol.front)), "-"), 
-                    processValue = processValue.replace(new RegExp(Inputmask.escapeRegex(opts.negationSymbol.back) + "$"), ""), 
+                    return processValue = processValue.replace(opts.suffix, ""), processValue = processValue.replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator), "g"), ""),
+                    "" !== opts.placeholder.charAt(0) && (processValue = processValue.replace(new RegExp(opts.placeholder.charAt(0), "g"), "0")),
+                    opts.unmaskAsNumber ? ("" !== opts.radixPoint && -1 !== processValue.indexOf(opts.radixPoint) && (processValue = processValue.replace(Inputmask.escapeRegex.call(this, opts.radixPoint), ".")),
+                    processValue = processValue.replace(new RegExp("^" + Inputmask.escapeRegex(opts.negationSymbol.front)), "-"),
+                    processValue = processValue.replace(new RegExp(Inputmask.escapeRegex(opts.negationSymbol.back) + "$"), ""),
                     Number(processValue)) : processValue;
                 },
                 isComplete: function isComplete(buffer, opts) {
                     var maskedValue = (opts.numericInput ? buffer.slice().reverse() : buffer).join("");
-                    return maskedValue = maskedValue.replace(new RegExp("^" + Inputmask.escapeRegex(opts.negationSymbol.front)), "-"), 
-                    maskedValue = maskedValue.replace(new RegExp(Inputmask.escapeRegex(opts.negationSymbol.back) + "$"), ""), 
-                    maskedValue = maskedValue.replace(opts.prefix, ""), maskedValue = maskedValue.replace(opts.suffix, ""), 
-                    maskedValue = maskedValue.replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator) + "([0-9]{3})", "g"), "$1"), 
-                    "," === opts.radixPoint && (maskedValue = maskedValue.replace(Inputmask.escapeRegex(opts.radixPoint), ".")), 
+                    return maskedValue = maskedValue.replace(new RegExp("^" + Inputmask.escapeRegex(opts.negationSymbol.front)), "-"),
+                    maskedValue = maskedValue.replace(new RegExp(Inputmask.escapeRegex(opts.negationSymbol.back) + "$"), ""),
+                    maskedValue = maskedValue.replace(opts.prefix, ""), maskedValue = maskedValue.replace(opts.suffix, ""),
+                    maskedValue = maskedValue.replace(new RegExp(Inputmask.escapeRegex(opts.groupSeparator) + "([0-9]{3})", "g"), "$1"),
+                    "," === opts.radixPoint && (maskedValue = maskedValue.replace(Inputmask.escapeRegex(opts.radixPoint), ".")),
                     isFinite(maskedValue);
                 },
                 onBeforeMask: function onBeforeMask(initialValue, opts) {
@@ -2271,11 +2350,11 @@
                     var digits = 0;
                     if ("" !== radixPoint && (digits = decimalPart.length, "" !== decimalPart)) {
                         var digitsFactor = Math.pow(10, digits || 1);
-                        isFinite(opts.digits) && (digits = parseInt(opts.digits), digitsFactor = Math.pow(10, digits)), 
-                        initialValue = initialValue.replace(Inputmask.escapeRegex(radixPoint), "."), isFinite(initialValue) && (initialValue = Math.round(parseFloat(initialValue) * digitsFactor) / digitsFactor), 
+                        isFinite(opts.digits) && (digits = parseInt(opts.digits), digitsFactor = Math.pow(10, digits)),
+                        initialValue = initialValue.replace(Inputmask.escapeRegex(radixPoint), "."), isFinite(initialValue) && (initialValue = Math.round(parseFloat(initialValue) * digitsFactor) / digitsFactor),
                         initialValue = initialValue.toString().replace(".", radixPoint);
                     }
-                    return 0 === opts.digits && -1 !== initialValue.indexOf(Inputmask.escapeRegex(radixPoint)) && (initialValue = initialValue.substring(0, initialValue.indexOf(Inputmask.escapeRegex(radixPoint)))), 
+                    return 0 === opts.digits && -1 !== initialValue.indexOf(Inputmask.escapeRegex(radixPoint)) && (initialValue = initialValue.substring(0, initialValue.indexOf(Inputmask.escapeRegex(radixPoint)))),
                     alignDigits(initialValue.toString().split(""), digits, opts).join("");
                 },
                 onBeforeWrite: function onBeforeWrite(e, buffer, caretPos, opts) {
@@ -2300,7 +2379,7 @@
                     if (e) switch (e.type) {
                       case "blur":
                       case "checkval":
-                        "" !== opts.radixPoint && buffer[0] === opts.radixPoint && (result && result.buffer ? result.buffer.shift() : (buffer.shift(), 
+                        "" !== opts.radixPoint && buffer[0] === opts.radixPoint && (result && result.buffer ? result.buffer.shift() : (buffer.shift(),
                         stripBuffer(buffer), result = {
                             refreshFromBuffer: !0,
                             buffer: buffer
@@ -2312,11 +2391,11 @@
                     var $input = $(this);
                     if (e.ctrlKey) switch (e.keyCode) {
                       case Inputmask.keyCode.UP:
-                        return this.inputmask.__valueSet.call(this, parseFloat(this.inputmask.unmaskedvalue()) + parseInt(opts.step)), 
+                        return this.inputmask.__valueSet.call(this, parseFloat(this.inputmask.unmaskedvalue()) + parseInt(opts.step)),
                         $input.trigger("setvalue"), !1;
 
                       case Inputmask.keyCode.DOWN:
-                        return this.inputmask.__valueSet.call(this, parseFloat(this.inputmask.unmaskedvalue()) - parseInt(opts.step)), 
+                        return this.inputmask.__valueSet.call(this, parseFloat(this.inputmask.unmaskedvalue()) - parseInt(opts.step)),
                         $input.trigger("setvalue"), !1;
                     }
                     if (!(e.shiftKey || e.keyCode !== Inputmask.keyCode.DELETE && e.keyCode !== Inputmask.keyCode.BACKSPACE && e.keyCode !== Inputmask.keyCode.BACKSPACE_SAFARI || !0 !== opts._radixDance || opts.digitsOptional)) {
@@ -2324,7 +2403,7 @@
                         if (-1 !== radixPos && (caretPos.begin < radixPos || e.keyCode === Inputmask.keyCode.DELETE && caretPos.begin === radixPos)) {
                             e.keyCode !== Inputmask.keyCode.BACKSPACE && e.keyCode !== Inputmask.keyCode.BACKSPACE_SAFARI || caretPos.begin++;
                             var bffr = buffer.slice().reverse();
-                            return bffr.splice(bffr.length - caretPos.begin, 1), $input.trigger("setvalue", [ alignDigits(bffr, opts.digits, opts).join(""), caretPos.begin ]), 
+                            return bffr.splice(bffr.length - caretPos.begin, 1), $input.trigger("setvalue", [ alignDigits(bffr, opts.digits, opts).join(""), caretPos.begin ]),
                             !1;
                         }
                     }
@@ -2412,7 +2491,7 @@
                     nptmask.mask(this);
                 });
             } else {
-                if (Array.isArray(fn)) return options.alias = fn, nptmask = new Inputmask(options), 
+                if (Array.isArray(fn)) return options.alias = fn, nptmask = new Inputmask(options),
                 this.each(function() {
                     nptmask.mask(this);
                 });
@@ -2427,7 +2506,7 @@
                 });
             }
         });
-    } ], installedModules = {}, __webpack_require__.m = modules, __webpack_require__.c = installedModules, 
+    } ], installedModules = {}, __webpack_require__.m = modules, __webpack_require__.c = installedModules,
     __webpack_require__.d = function(exports, name, getter) {
         __webpack_require__.o(exports, name) || Object.defineProperty(exports, name, {
             enumerable: !0,
@@ -2467,7 +2546,7 @@
             l: !1,
             exports: {}
         };
-        return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__), 
+        return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__),
         module.l = !0, module.exports;
     }
     var modules, installedModules;

@@ -14,17 +14,10 @@
 <script type="text/javascript" src="dist/jquery.inputmask.js" charset="utf-8"></script>
 <script>
 	console.log(navigator.userAgent);
-    $("#test1").inputmask("datetime", {
-        inputFormat: "dd/mm/yyyy",
-        outputFormat: "mm-yyyy-dd",
-        inputEventOnly: true
-    });
-    $("#test2").inputmask("datetime", {
-        inputFormat: "dd/mm/yyyy",
-        outputFormat: "mm-yyyy-dd",
-        inputEventOnly: true
-    });
-    $("#test3").inputmask("datetime", {
+    $("#test1").inputmask("cnpj");
+    $("#test2").inputmask("cpf");
+    $("#test3").inputmask("mac");
+    $("#test4").inputmask("datetime", {
         inputFormat: "dd/mm/yyyy",
         outputFormat: "mm-yyyy-dd",
         inputEventOnly: true
