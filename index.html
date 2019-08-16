@@ -1,27 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <link href="css/inputmask.css" rel="stylesheet" type="text/css">
+  <meta charset="UTF-8">
+  <title>inputmask fields demo</title>
+  <link href="css/inputmask.css" rel="stylesheet" type="text/css">
 </head>
+
 <body>
-<input id="test1" name="test1"/><br/>
-<input id="test2" name="test2"/><br/>
-<input id="test3" name="test3"/><br/>
-<br/>
-<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" charset="utf-8"></script>
-<script type="text/javascript" src="dist/jquery.inputmask.js" charset="utf-8"></script>
-<script>
-	console.log(navigator.userAgent);
-    $("#test1").inputmask("cnpj");
-    $("#test2").inputmask("cpf");
-    $("#test3").inputmask("mac");
-    $("#test4").inputmask("datetime", {
-        inputFormat: "dd/mm/yyyy",
-        outputFormat: "mm-yyyy-dd",
-        inputEventOnly: true
+  <form id="form" action="">
+    <fieldset>
+      <legend>Empresa/Pessoa</legend>
+      <label for="test1">CNPJ</label><input id="test1" name="test1" />
+      <spam id="test1_submit"></spam><br />
+      <label for="test2">CPF</label><input id="test2" name="test2" />
+      <spam id="test2_submit"></spam><br />
+    </fieldset>
+
+    <fieldset>
+      <legend>Data/Hora</legend>
+      <label for="test3">HH:MM</label><input id="test3" name="test3" />
+      <spam id="test3_submit"></spam><br />
+      <label for="test4">HHH:MM</label><input id="test4" name="test4" />
+      <spam id="test4_submit"></spam><br />
+      <label for="test5">DD/MM/AA</label><input id="test5" name="test4" />
+      <spam id="test5_submit"></spam><br />
+    </fieldset>
+
+    <input id="submit" name="submit" type="submit">
+  </form>
+  <br />
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="dist/jquery.inputmask.js" charset="utf-8"></script>
+  <script>
+    console.log(navigator.userAgent);
+    $("#test1").inputmask("cnpj", {
+
     });
-</script>
+    $("#test2").inputmask("cpf", {
+
+    });
+    $("#test3").inputmask("datetime", {
+      inputFormat: "HH:MM"
+    });
+    $("#test4").inputmask("datetime", {
+      inputFormat: "HHH:MM"
+    });
+    $("#test5").inputmask("datetime", {
+      inputFormat: "dd/mm/yy"
+    });
+
+
+    $("form").on("submit", function(event) {
+
+      event.preventDefault();
+      let serialized = $(this).serialize();
+      console.log(`GET: ${serialized}`);
+
+      $(":input").each(function(idx, el) {
+
+        let element = $(el);
+        if (element.val() && element.val() !== '') {
+          let spamname = "#" + element.attr("name") + "_submit";
+          let spam = $(spamname);
+          spam.text(element.val());
+          spam.css({'color':'red'});
+        }
+
+      });
+
+    // $("span").text("Not valid!").show().fadeOut(1000);
+    });
+  </script>
 </body>
+
 </html>
